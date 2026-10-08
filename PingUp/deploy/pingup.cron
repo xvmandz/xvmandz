@@ -1,0 +1,3 @@
+# /etc/cron.d/pingup — adapt the path. Publishes scheduled messages, expires partial uploads,
+# removes orphaned files and stale rows. Scheduled posts are also published opportunistically by sync.
+*/5 * * * * www-data /usr/bin/php /var/www/pingup/bin/cleanup.php >/dev/null 2>&1

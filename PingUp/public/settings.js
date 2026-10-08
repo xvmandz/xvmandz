@@ -27,11 +27,11 @@
   P.registerPage('settings', {
     render(el) {
       const u = state.user;
-      el.innerHTML = `<header class="app-bar"><h1>${esc(t('nav.settings'))}</h1><button class="icon-btn" data-action="search" aria-label="${esc(t('search.title'))}">${icon('search')}</button></header><div class="scroller"><div class="page-content page-inner settings-layout"><button class="list-item" data-open-section="profile" style="margin:4px 12px 14px;width:calc(100% - 24px);padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)">${P.avatar(u, 'lg')}<span class="li-body"><strong>${esc(u.name)}${P.badges(u)}</strong><small>@${esc(u.username)}${u.email && u.email_verified ? ' · ' + esc(u.email) : ''}</small></span>${icon('chevron')}</button>${banner('settings', t('premium.banner_title'), t('premium.banner_text'))}<div class="group-card list">${row('profile', 'violet', t('settings.profile'), { attrs: 'data-open-section="profile"' })}${row('lock', 'blue', t('settings.privacy'), { hint: t('privacy.row_hint'), attrs: 'data-open-section="privacy"' })}${row('mail', 'teal', t('settings.security'), { hint: u.email ? (u.email_verified ? t('email.verified_short') : t('email.pending_short')) : t('email.not_set_short'), attrs: 'data-open-section="security"' })}</div><div class="group-card list">${row('bell', 'red', t('settings.notifications'), { attrs: 'data-open-section="notifications"' })}${row('palette', 'pink', t('settings.appearance'), { attrs: 'data-open-section="appearance"' })}${row('folder', 'orange', t('folders.title'), { value: String(state.folders.length || ''), attrs: 'data-open-section="folders"' })}${row('globe', 'green', t('settings.language'), { value: { uk: 'Українська', ru: 'Русский', en: 'English' }[state.locale], attrs: 'data-open-section="language"' })}</div><div class="group-card list">${row('crown', 'premium', 'PingUp Premium', { hint: isPremium() ? (state.premium.forever ? t('premium.forever') : t('premium.until', { date: P.longDate(state.premium.ends_at) })) : t('premium.short_pitch'), attrs: 'data-open-section="premium"' })}${row('saved', 'blue', t('nav.saved'), { attrs: 'data-open-saved' })}${row('star', 'orange', t('starred.title'), { attrs: 'data-open-section="starred"' })}</div><div class="group-card list">${row('help', 'green', t('feedback.title'), { hint: t('feedback.subtitle'), attrs: 'data-open-section="feedback"', badge: state.feedbackUnread ? ` <b class="badge">${state.feedbackUnread}</b>` : '' })}${row('bug', 'red', t('feedback.report_problem'), { attrs: 'data-feedback-new="bug"' })}${u.role === 'admin' ? row('shield', 'gray', t('admin.title'), { attrs: 'data-open-section="admin"', badge: state.admin?.feedback_unread ? ` <b class="badge">${state.admin.feedback_unread}</b>` : '' }) : ''}</div><div class="group-card list">${row('info', 'gray', t('settings.about'), { value: `PingUp ${P.VERSION}`, attrs: 'data-open-section="about"' })}<button class="list-item" data-action="logout" style="color:var(--danger)"><span class="li-icon ic-red">${icon('logout')}</span><span class="li-body"><strong>${esc(t('settings.logout'))}</strong></span></button></div></div></div>`;
+      el.innerHTML = `<header class="app-bar"><h1>${esc(t('nav.settings'))}</h1><button class="icon-btn" data-action="search" aria-label="${esc(t('search.title'))}">${icon('search')}</button></header><div class="scroller"><div class="page-content page-inner settings-layout"><button class="list-item" data-open-section="profile" style="margin:4px 12px 14px;width:calc(100% - 24px);padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)">${P.avatar(u, 'lg')}<span class="li-body"><strong>${esc(u.name)}${P.badges(u)}</strong><small>@${esc(u.username)}${u.email && u.email_verified ? ' · ' + esc(u.email) : ''}</small></span>${icon('chevron')}</button>${banner('settings', t('premium.banner_title'), t('premium.banner_text'))}<div class="group-card list">${row('profile', 'violet', t('settings.profile'), { attrs: 'data-open-section="profile"' })}${row('lock', 'blue', t('settings.privacy'), { hint: t('privacy.row_hint'), attrs: 'data-open-section="privacy"' })}${row('mail', 'teal', t('settings.security'), { hint: u.email ? (u.email_verified ? t('email.verified_short') : t('email.pending_short')) : t('email.not_set_short'), attrs: 'data-open-section="security"' })}</div><div class="group-card list">${row('bell', 'red', t('settings.notifications'), { attrs: 'data-open-section="notifications"' })}${row('palette', 'pink', t('settings.appearance'), { attrs: 'data-open-section="appearance"' })}${row('folder', 'orange', t('folders.title'), { value: String(state.folders.length || ''), attrs: 'data-open-section="folders"' })}${row('globe', 'green', t('settings.language'), { value: { uk: 'Українська', ru: 'Русский', en: 'English' }[state.locale], attrs: 'data-open-section="language"' })}</div><div class="group-card list">${row('crown', 'premium', 'PingUp Premium', { hint: isPremium() ? (state.premium.forever ? t('premium.forever') : t('premium.until', { date: P.longDate(state.premium.ends_at) })) : t('premium.short_pitch'), attrs: 'data-open-section="premium"' })}${row('saved', 'blue', t('nav.saved'), { attrs: 'data-open-saved' })}${row('star', 'orange', t('starred.title'), { attrs: 'data-open-section="starred"' })}${row('sticker', 'pink', t('stickers.title'), { attrs: 'data-open-section="stickers"' })}</div><div class="group-card list">${row('help', 'green', t('feedback.title'), { hint: t('feedback.subtitle'), attrs: 'data-open-section="feedback"', badge: state.feedbackUnread ? ` <b class="badge">${state.feedbackUnread}</b>` : '' })}${row('bug', 'red', t('feedback.report_problem'), { attrs: 'data-feedback-new="bug"' })}${u.role === 'admin' ? row('shield', 'gray', t('admin.title'), { attrs: 'data-open-section="admin"', badge: state.admin?.feedback_unread ? ` <b class="badge">${state.admin.feedback_unread}</b>` : '' }) : ''}</div><div class="group-card list">${row('info', 'gray', t('settings.about'), { value: `PingUp ${P.VERSION}`, attrs: 'data-open-section="about"' })}<button class="list-item" data-action="logout" style="color:var(--danger)"><span class="li-icon ic-red">${icon('logout')}</span><span class="li-body"><strong>${esc(t('settings.logout'))}</strong></span></button></div></div></div>`;
     },
   });
   Pages.openSection = name => {
-    const handlers = { profile: profilePage, privacy: privacyPage, notifications: notificationsPage, appearance: appearancePage, premium: premiumPage, security: securityPage, folders: foldersPage, starred: starredPage, language: languagePage, feedback: feedbackHub, admin: adminPage, about: aboutPage, blocked: () => { P.setPage('contacts'); setTimeout(() => $('[data-contacts-tab="blocked"]')?.click(), 50); } };
+    const handlers = { stickers: stickersPage, profile: profilePage, privacy: privacyPage, notifications: notificationsPage, appearance: appearancePage, premium: premiumPage, security: securityPage, folders: foldersPage, starred: starredPage, language: languagePage, feedback: feedbackHub, admin: adminPage, about: aboutPage, blocked: () => { P.setPage('contacts'); setTimeout(() => $('[data-contacts-tab="blocked"]')?.click(), 50); } };
     handlers[name]?.();
   };
 
@@ -99,13 +99,22 @@
     const page = Pages.subpage(t('settings.notifications'));
     const render = () => {
       const s = state.settings;
-      page.body.innerHTML = `<div class="group-card">${toggle('dnd', t('settings.quiet'), s.dnd, t('settings.quiet_hint'))}${toggle('preview', t('notify.preview'), s.preview, t('notify.preview_hint'))}</div><div class="group-title">${esc(t('notify.sounds'))}</div><div class="group-card">${toggle('sounds', t('notify.sounds'), s.sounds)}${toggle('message_sound', t('notify.message_sound'), s.message_sound)}${toggle('send_sound', t('notify.send_sound'), s.send_sound)}${toggle('call_sound', t('notify.call_sound'), s.call_sound)}<label class="option-row"><span class="li-body"><strong>${esc(t('notify.volume'))}</strong></span><input type="range" min="0" max="100" value="${Math.round((s.volume ?? 0.35) * 100)}" data-volume style="max-width:160px"></label></div><div class="group-title">${esc(t('notify.system'))}</div><div class="group-card list"><button class="list-item" data-push-toggle><span class="li-icon ic-red">${icon('bell')}</span><span class="li-body"><strong>${esc(t(s.system ? 'notify.disable' : 'notify.enable'))}</strong><small>${esc(t('notify.autoplay_hint'))}</small></span></button></div><div class="group-title">${esc(t('settings.chats'))}</div><div class="group-card">${toggle('enter_to_send', t('settings.enter_to_send'), s.enter_to_send !== false, t('settings.enter_to_send_hint'))}</div>`;
+      page.body.innerHTML = `<div class="group-card">${toggle('dnd', t('settings.quiet'), s.dnd, t('settings.quiet_hint'))}${toggle('preview', t('notify.preview'), s.preview, t('notify.preview_hint'))}</div><div class="group-title">${esc(t('notify.sounds'))}</div><div class="group-card">${toggle('sounds', t('notify.sounds'), s.sounds)}${toggle('message_sound', t('notify.message_sound'), s.message_sound)}${toggle('send_sound', t('notify.send_sound'), s.send_sound)}${toggle('call_sound', t('notify.call_sound'), s.call_sound)}<label class="option-row"><span class="li-body"><strong>${esc(t('notify.volume'))}</strong></span><input type="range" min="0" max="100" value="${Math.round((s.volume ?? 0.35) * 100)}" data-volume style="max-width:160px"></label></div><div class="group-title">${esc(t('notify.system'))}</div><div class="group-card list"><button class="list-item" data-push-toggle><span class="li-icon ic-red">${icon('bell')}</span><span class="li-body"><strong>${esc(t(s.system ? 'notify.disable' : 'notify.enable'))}</strong><small>${esc(t('notify.autoplay_hint'))}</small></span></button></div><div class="group-title">${esc(t('settings.chats'))}</div><div class="group-card">${toggle('enter_to_send', t('settings.enter_to_send'), s.enter_to_send !== false, t('settings.enter_to_send_hint'))}<div class="option-row"><span class="li-body"><strong>${esc(t('reactions.quick'))}</strong><small>${esc(t('reactions.quick_hint'))}</small></span></div><div class="quick-reactions" style="margin:0 10px 10px">${(s.favorite_reactions || []).map(e => `<button data-remove-favorite="${e}" aria-label="${esc(t('common.remove'))} ${e}">${e}</button>`).join('')}${(s.favorite_reactions || []).length < 8 ? `<button class="more-reactions" data-add-favorite aria-label="${esc(t('common.add'))}">${icon('plus')}</button>` : ''}</div></div>`;
     };
     render();
     page.el.addEventListener('change', async event => {
       const key = event.target.dataset.setting;
       if (key) { try { await save({ [key]: event.target.checked }); } catch (error) { event.target.checked = !event.target.checked; P.failed(error); } }
       if (event.target.hasAttribute('data-volume')) save({ volume: Number(event.target.value) / 100 }).catch(P.failed);
+    });
+    page.el.addEventListener('click', event => {
+      const favorites = state.settings.favorite_reactions || [];
+      const remove = event.target.closest('[data-remove-favorite]');
+      if (remove) save({ favorite_reactions: favorites.filter(e => e !== remove.dataset.removeFavorite) }).then(render).catch(P.failed);
+      if (event.target.closest('[data-add-favorite]')) {
+        const picker = PU.sheet({ title: t('reactions.quick'), body: `<div class="emoji-grid">${'❤️ 👍 🔥 😂 🥹 ✨ 😮 😢 🎉 🙏 👏 💯 🤔 😍 🤝 👀 💜 🙌 😎 🤯 😡 👌 🫶 ⚡'.split(' ').map(e => `<button data-pick-favorite="${e}">${e}</button>`).join('')}</div>` });
+        picker.el.addEventListener('click', e => { const b = e.target.closest('[data-pick-favorite]'); if (b) { picker.close(); save({ favorite_reactions: [...new Set([...favorites, b.dataset.pickFavorite])].slice(0, 8) }).then(render).catch(P.failed); } });
+      }
     });
     P.on('settings', () => { if (!page.closed && !page.el.contains(document.activeElement)) render(); });
   }
@@ -233,6 +242,39 @@
       });
       s.el.addEventListener('click', async e => { const d = e.target.closest('[data-delete-folder]'); if (d) { try { state.folders = (await P.post('folders.delete', { id: Number(d.dataset.deleteFolder) })).folders; state.filter = 'all'; s.close(); render(); } catch (error) { P.failed(error); } } });
     });
+  }
+
+  /* ---------- Sticker packs ---------- */
+  async function stickersPage() {
+    const page = Pages.subpage(t('stickers.title'));
+    const render = packs => {
+      page.body.innerHTML = `<p class="hint">${esc(t('stickers.hint'))}</p>${packs.map(p => `<div class="group-title">${esc(p.title)}${p.system ? ' · PingUp' : ''}</div><div class="group-card pad" style="padding:10px"><div class="emoji-grid sticker-grid">${p.stickers.map(st => `<span style="position:relative;display:grid;place-items:center"><img src="${esc(st.url)}" alt="${esc(st.emoji)}" width="72" height="72" loading="lazy">${p.owned ? `<button class="attach-remove" data-remove-sticker="${st.id}" aria-label="${esc(t('common.remove'))}">${icon('close')}</button>` : ''}</span>`).join('')}${p.owned && p.stickers.length < 60 ? `<button class="shot-add" data-add-sticker="${p.id}" aria-label="${esc(t('stickers.add'))}">${icon('plus')}</button>` : ''}</div>${p.owned ? `<button class="btn danger small" data-delete-pack="${p.id}">${esc(t('stickers.delete_pack'))}</button>` : !p.system ? `<button class="btn small" data-uninstall-pack="${p.id}">${esc(t('stickers.remove_pack'))}</button>` : ''}</div>`).join('')}<div class="pad"><button class="btn primary block" data-create-pack>${icon('plus')}${esc(t('stickers.create_pack'))}</button></div>`;
+    };
+    const load = async () => { try { render((await P.api('stickers.packs')).packs); } catch (error) { page.body.innerHTML = errorBlock(error); } };
+    page.el.addEventListener('click', async event => {
+      const el = event.target.closest('button');
+      if (!el) return;
+      try {
+        if (el.hasAttribute('data-create-pack')) {
+          const title = await PU.confirm({ title: t('stickers.create_pack'), confirm: t('common.create'), input: { label: t('stickers.pack_name') } });
+          if (title) render((await P.post('stickers.pack_create', { title })).packs);
+        }
+        if (el.dataset.addSticker) {
+          const input = Object.assign(document.createElement('input'), { type: 'file', accept: 'image/png,image/webp,image/gif' });
+          input.onchange = async () => {
+            if (!input.files[0]) return;
+            try { const file = await P.uploadFile(input.files[0], 'sticker'); render((await P.post('stickers.add', { pack_id: Number(el.dataset.addSticker), file_id: file.id })).packs); }
+            catch (error) { P.failed(error); }
+          };
+          input.click();
+        }
+        if (el.dataset.removeSticker) render((await P.post('stickers.remove', { sticker_id: Number(el.dataset.removeSticker) })).packs);
+        if (el.dataset.deletePack && await PU.confirm({ title: t('stickers.delete_pack'), confirm: t('delete.confirm'), danger: true })) render((await P.post('stickers.pack_delete', { pack_id: Number(el.dataset.deletePack) })).packs);
+        if (el.dataset.uninstallPack) render((await P.post('stickers.uninstall', { pack_id: Number(el.dataset.uninstallPack) })).packs);
+      } catch (error) { P.failed(error); }
+    });
+    page.body.innerHTML = loading;
+    load();
   }
 
   /* ---------- Starred / language / about ---------- */

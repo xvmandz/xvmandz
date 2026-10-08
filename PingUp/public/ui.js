@@ -70,26 +70,40 @@
   /* ---------- Layers: every overlay/screen gets a history entry so Android Back closes it. ---------- */
   const stack = [];
   let seq = 0, ignorePops = 0;
+  const deferred = [];
+  // history.back() is asynchronous: a layer opened right after another one closes must not push its
+  // history entry until that back navigation has landed, or Back would later skip a layer.
+  function writeState(layer) {
+    try { history.pushState({ pingup: layer.id, depth: stack.indexOf(layer) + 1 }, ''); } catch { /* sandboxed */ }
+  }
   function pushLayer(close, name = 'layer') {
-    const id = ++seq;
-    stack.push({ id, close, name });
-    try { history.pushState({ pingup: id, depth: stack.length }, ''); } catch { /* sandboxed */ }
-    return id;
+    const layer = { id: ++seq, close, name };
+    stack.push(layer);
+    if (ignorePops > 0) deferred.push(layer); else writeState(layer);
+    return layer.id;
   }
   function closeLayer(id) {
     const index = stack.findIndex(layer => layer.id === id);
     if (index < 0) return;
-    if (index === stack.length - 1) {
-      stack.pop().close(false);
+    const layer = stack[index];
+    const pendingEntry = deferred.indexOf(layer);
+    if (pendingEntry >= 0) { deferred.splice(pendingEntry, 1); stack.splice(index, 1); layer.close(false); return; }
+    if (index === stack.length - 1 - deferred.length) {
+      stack.splice(index, 1);
+      layer.close(false);
       ignorePops++;
       try { history.back(); } catch { ignorePops--; }
     } else {
-      stack.splice(index, 1)[0].close(false);
+      stack.splice(index, 1);
+      layer.close(false);
     }
   }
   function hasLayer(name) { return stack.some(layer => layer.name === name); }
   window.addEventListener('popstate', event => {
-    if (ignorePops > 0) { ignorePops--; return; }
+    if (ignorePops > 0) {
+      if (--ignorePops === 0) while (deferred.length) writeState(deferred.shift());
+      return;
+    }
     const depth = Number(event.state?.depth) || 0;
     while (stack.length > depth) stack.pop().close(true);
   });

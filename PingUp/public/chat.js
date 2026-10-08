@@ -391,8 +391,10 @@
       chat.hasMore = !!data.has_more;
       $('.load-older', screen).hidden = !chat.hasMore;
       updatePins();
+      const saved = state.scroll.get(`chat:${id}`);
       if (messageId) jumpTo(messageId);
       else if (chat.unreadMarker) scrollToEl($('.unread-sep', screen), 'start');
+      else if (saved !== undefined && saved !== null) requestAnimationFrame(() => { const a = area(); if (a) { a.scrollTop = saved; updateJump(); } });
       else scrollBottom(false);
       flushRead();
     } catch (error) {
@@ -405,7 +407,7 @@
     const input = $('#message-input', chat.screen || document);
     if (state.active && input) state.drafts.set(Number(state.active), { text: input.value });
     const a = area();
-    if (state.active && a) state.scroll.set(`chat:${state.active}`, a.scrollTop);
+    if (state.active && a) state.scroll.set(`chat:${state.active}`, isNearBottom() ? null : a.scrollTop);
   }
   function close() { if (chat.layer) PU.closeLayer(chat.layer); else closeScreen(); }
   function closeScreen() {

@@ -24,7 +24,7 @@
  "common.done": "Готово",
  "common.edit": "Редагувати",
  "common.delete": "Видалити",
- "common.remove": "Прибрати",
+ "common.remove": "Видалити",
  "common.confirm": "Підтвердити",
  "common.retry": "Спробувати ще раз",
  "common.search": "Пошук",
@@ -1374,5 +1374,16 @@
  "error.invalid_subscription": "Некоректна підписка на сповіщення",
  "error.device_limit": "Забагато пристроїв",
  "error.push_not_configured": "Push не налаштовано на сервері",
- "error.push_provider_unsupported": "Сервіс сповіщень не підтримується"
+ "error.push_provider_unsupported": "Сервіс сповіщень не підтримується",
+ "group.manage": "Керування групою",
+ "calls.need_contacts": "Додайте контакти, щоб дзвонити.",
+ "reactions.quick": "Швидкі реакції",
+ "reactions.quick_hint": "Показуються першими в меню повідомлення (до 8)",
+ "stickers.title": "Стікери",
+ "stickers.hint": "Набір PingUp доступний усім. Власні набори: PNG, WEBP або GIF до 512×512 і 512 КБ.",
+ "stickers.create_pack": "Створити набір",
+ "stickers.pack_name": "Назва набору",
+ "stickers.add": "Додати стікер",
+ "stickers.delete_pack": "Видалити набір",
+ "stickers.remove_pack": "Прибрати набір"
 }

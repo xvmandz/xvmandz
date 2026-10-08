@@ -24,7 +24,7 @@
  "common.done": "Готово",
  "common.edit": "Редактировать",
  "common.delete": "Удалить",
- "common.remove": "Убрать",
+ "common.remove": "Удалить",
  "common.confirm": "Подтвердить",
  "common.retry": "Попробовать ещё раз",
  "common.search": "Поиск",
@@ -1374,5 +1374,16 @@
  "error.invalid_subscription": "Некорректная подписка на уведомления",
  "error.device_limit": "Слишком много устройств",
  "error.push_not_configured": "Push не настроен на сервере",
- "error.push_provider_unsupported": "Сервис уведомлений не поддерживается"
+ "error.push_provider_unsupported": "Сервис уведомлений не поддерживается",
+ "group.manage": "Управление группой",
+ "calls.need_contacts": "Добавьте контакты, чтобы звонить.",
+ "reactions.quick": "Быстрые реакции",
+ "reactions.quick_hint": "Показываются первыми в меню сообщения (до 8)",
+ "stickers.title": "Стикеры",
+ "stickers.hint": "Набор PingUp доступен всем. Свои наборы: PNG, WEBP или GIF до 512×512 и 512 КБ.",
+ "stickers.create_pack": "Создать набор",
+ "stickers.pack_name": "Название набора",
+ "stickers.add": "Добавить стикер",
+ "stickers.delete_pack": "Удалить набор",
+ "stickers.remove_pack": "Убрать набор"
 }

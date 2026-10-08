@@ -1374,5 +1374,16 @@
  "error.invalid_subscription": "Invalid notification subscription",
  "error.device_limit": "Too many devices",
  "error.push_not_configured": "Push is not configured on the server",
- "error.push_provider_unsupported": "Push provider not supported"
+ "error.push_provider_unsupported": "Push provider not supported",
+ "group.manage": "Manage group",
+ "calls.need_contacts": "Add contacts to start calls.",
+ "reactions.quick": "Quick reactions",
+ "reactions.quick_hint": "Shown first in the message menu (up to 8)",
+ "stickers.title": "Stickers",
+ "stickers.hint": "The PingUp pack is available to everyone. Your own packs: PNG, WEBP or GIF up to 512×512 and 512 KB.",
+ "stickers.create_pack": "Create pack",
+ "stickers.pack_name": "Pack name",
+ "stickers.add": "Add sticker",
+ "stickers.delete_pack": "Delete pack",
+ "stickers.remove_pack": "Remove pack"
 }
