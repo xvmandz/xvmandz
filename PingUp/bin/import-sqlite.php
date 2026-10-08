@@ -13,7 +13,7 @@ try{
     if((int)$source->query('PRAGMA user_version')->fetchColumn()!==3)throw new RuntimeException('Upgrade the source copy with PingUp 1.1 first (schema 3 required).');
     $counts=transaction(function()use($source,$tables):array{
         lockKey('schema-migration');
-        if((int)query('SELECT MAX(version) FROM schema_migrations')->fetchColumn()!==4)throw new RuntimeException('Run bin/migrate.php first.');
+        if((int)query('SELECT MAX(version) FROM schema_migrations')->fetchColumn()<4)throw new RuntimeException('Run bin/migrate.php first.');
         db()->exec('LOCK TABLE '.implode(',',$tables).',message_hidden IN ACCESS EXCLUSIVE MODE');
         foreach($tables as $table)if((int)query('SELECT COUNT(*) FROM '.$table)->fetchColumn()!==0)throw new RuntimeException('Target must be empty; import never overwrites data.');
         db()->exec('SET CONSTRAINTS ALL DEFERRED');
@@ -30,6 +30,10 @@ try{
         foreach(query("SELECT id FROM conversations WHERE type='channel' AND invite_token IS NULL")->fetchAll() as $channel)query('UPDATE conversations SET invite_token=? WHERE id=?',[bin2hex(random_bytes(24)),$channel['id']]);
         // Preserve identifiers/password hashes/session versions; historical calls get one chat entry.
         foreach(query('SELECT * FROM calls ORDER BY id')->fetchAll() as $call)callRecord($call);
+        // Schema 5 columns derived from imported 1.1 data.
+        query('UPDATE conversation_members SET last_delivered_message_id=last_read_message_id');
+        query("UPDATE conversation_members cm SET role='owner' FROM conversations c WHERE c.id=cm.conversation_id AND c.owner_id=cm.user_id AND c.type IN ('group','channel')");
+        query('UPDATE messages SET pinned_at=updated_at WHERE pinned=1');
         return $counts;
     });
     $source->rollBack();db()->exec('ANALYZE');

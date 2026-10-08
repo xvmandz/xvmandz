@@ -97,6 +97,9 @@ function callsHandle(string $action, array $input, array $parameters, int $userI
         if (!query('SELECT id FROM users WHERE id=?', [$peerId])->fetchColumn()) {
             throw new ApiError('user_not_found', 404);
         }
+        // Blocks and the callee's "who can call me" setting are enforced server-side.
+        if (blockedEither($userId, $peerId)) throw new ApiError('user_blocked', 403);
+        if (!privacyAllows($peerId, $userId, 'calls')) throw new ApiError('privacy_restricted', 403);
         return transaction(function () use ($userId, $peerId, $kind, $device): array {
             foreach([min($userId,$peerId),max($userId,$peerId)] as $uid)lockKey('call-user:'.$uid);
             $busy = query("SELECT id FROM calls WHERE status IN ('ringing','active') AND (caller_id IN (?,?) OR callee_id IN (?,?)) LIMIT 1", [$userId, $peerId, $userId, $peerId])->fetchColumn();

@@ -11,8 +11,8 @@ header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: same-origin');
 
 try {
-    $readActions = ['bootstrap', 'users.search', 'users.profile', 'channels.search', 'conversations.list', 'messages.list', 'messages.search', 'sync', 'calls.poll', 'calls.history', 'notifications.list', 'notifications.resolve', 'push.status'];
-    $writeActions = ['auth.register', 'auth.login', 'auth.logout', 'auth.password', 'profile.update', 'channels.join', 'channels.leave', 'channels.update', 'conversations.create', 'conversations.read', 'conversations.pin', 'messages.send', 'messages.edit', 'messages.delete', 'messages.react', 'messages.pin', 'messages.forward', 'messages.save', 'typing.set', 'files.upload', 'calls.start', 'calls.signal', 'calls.accept', 'calls.end', 'notifications.settings', 'notifications.chat', 'push.subscribe', 'push.unsubscribe'];
+    $readActions = READ_ACTIONS;
+    $writeActions = WRITE_ACTIONS;
     $action = $_GET['action'] ?? '';
     if (!is_string($action) || !in_array($action, array_merge($readActions, $writeActions), true)) {
         throw new ApiError('invalid_action', 404);
@@ -26,7 +26,8 @@ try {
     if (!$read) {
         verifyCsrf();
     }
-    $input = $read ? $_GET : ($action === 'files.upload' ? $_POST : jsonBody());
+    // Uploads carry multipart or raw chunk bodies; every other write is JSON.
+    $input = $read ? $_GET : ($action === 'files.upload' ? $_POST : ($action === 'files.upload_chunk' ? [] : jsonBody()));
     // Polling never holds the per-session filesystem lock while querying data.
     if ($read) {
         session_write_close();

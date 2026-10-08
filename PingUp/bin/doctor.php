@@ -17,7 +17,7 @@ try {
     $cfg = config();
     $check('Private storage outside public/', true);
     $check('Storage writable', is_writable($cfg['storage_path']) && is_writable($cfg['upload_dir']) && is_writable($cfg['session_dir']));
-    $check('PostgreSQL schema 4', (int)db()->query('SELECT MAX(version) FROM schema_migrations')->fetchColumn() === 4);
+    $check('PostgreSQL schema '.PINGUP_SCHEMA_VERSION, (int)db()->query('SELECT MAX(version) FROM schema_migrations')->fetchColumn() === PINGUP_SCHEMA_VERSION);
     $check('Secure cookies configured (required on HTTPS production)', (bool)$cfg['secure_cookies']);
     if (!$cfg['app_origin']) { echo '[NOTICE] Set app_origin to the HTTPS origin on production.' . PHP_EOL; }
     if ($cfg['registration_enabled'] && $cfg['invite_code'] === '') { echo '[NOTICE] Registration has no invite code. Configure a private code for five testers.' . PHP_EOL; }
