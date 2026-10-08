@@ -1,0 +1,51 @@
+/* Fast, finite motion. Chat rows and media remain keyed and alive. */
+:root{--motion-fast:160ms;--motion-medium:240ms;--motion-ease:cubic-bezier(.22,.8,.25,1)}
+button,a,input,textarea,select{transition:background-color var(--motion-fast),border-color var(--motion-fast),color var(--motion-fast),box-shadow var(--motion-fast),transform var(--motion-fast) var(--motion-ease)}
+button:active:not(:disabled){transform:scale(.97)}
+.page-enter{animation:space-in var(--motion-medium) var(--motion-ease) both}
+.chat-header,.chat-composer{animation:space-in 220ms var(--motion-ease) both}
+.person-card,.stat-card,.contact-card,.settings-card,.profile-info-card{transition:transform 220ms var(--motion-ease),border-color 180ms,background-color 180ms}
+@media(hover:hover){.person-card:hover,.stat-card:hover,.contact-card:hover{transform:translateY(-3px);border-color:color-mix(in srgb,var(--accent),transparent 65%)}.conversation-row:hover{transform:translateX(2px)}.send-button:hover svg{transform:translate(1px,-1px)}.chat-call-card:hover .chat-call-icon{transform:rotate(-7deg)}}
+.nav-item.active{box-shadow:inset 3px 0 0 var(--accent)}
+.conversation-row{transition:background-color 160ms,border-color 160ms,transform 160ms}
+.conversation-row .badge{animation:badge-in 180ms var(--motion-ease)}
+.messages-list .message-enter{animation:bubble-in 240ms var(--motion-ease) both}
+.message-group.own.message-enter{animation-name:own-bubble-in}
+.message-delivered .delivery-mark{animation:delivery-in 320ms var(--motion-ease)}
+.message-remove{animation:bubble-out 180ms ease-in both;pointer-events:none}
+.reaction-pop .reaction{animation:reaction-in 220ms var(--motion-ease)}
+.message-reply,.reply-preview,.attachment-preview{animation:space-in 180ms var(--motion-ease)}
+.send-button svg,.chat-call-icon{transition:transform 180ms var(--motion-ease)}
+.chat-composer:focus-within{border-color:color-mix(in srgb,var(--accent),transparent 68%);box-shadow:0 -6px 24px #9276ff05}
+.modal[open]{animation:dialog-in 210ms var(--motion-ease)}
+.modal[open]::backdrop{animation:backdrop-in 160ms ease-out}
+.list-option{transition:background-color 140ms,transform 160ms}
+.list-option:active{transform:scale(.99)}
+.chat-call-card{display:flex;align-items:center;gap:.8rem;width:100%;min-width:15rem;max-width:100%;text-align:left;background:transparent;color:inherit;border:0;padding:.25rem;cursor:pointer}
+.chat-call-card>span:nth-child(2){display:flex;flex-direction:column;gap:.3rem;flex:1;min-width:0}
+.chat-call-card strong{font-size:.95rem}.chat-call-card small{font-size:.78rem;color:var(--muted)}
+.chat-call-icon{display:grid;place-items:center;width:2.75rem;height:2.75rem;border-radius:50%;color:var(--accent);background:#947aff16;flex-shrink:0}
+.chat-call-icon svg,.chat-call-card>svg{width:1.25rem;height:1.25rem}
+.chat-call-card.live .chat-call-icon{color:#34d399;background:#34d39915}
+.call-log .message-bubble{min-width:17rem}.call-log .message-time{display:flex;justify-content:flex-end;margin-top:.45rem}
+.danger-option{color:#f87171!important}.delete-options{border-top:1px solid var(--border);padding-top:.65rem;margin-top:.5rem}
+.deleted-message{font-style:italic;color:var(--muted)}
+.channel-entry{flex-shrink:0;padding:.7rem 1rem!important;margin:0!important;text-align:left}
+.channel-info{display:flex;align-items:center;flex-direction:column;gap:.8rem;text-align:center}.channel-info p{line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere}.channel-handle{color:var(--accent)}
+.channel-note,.field>small{font-size:.78rem;line-height:1.5;color:var(--muted)}
+.channel-members h3{font-size:.9rem;margin:1.2rem 0 .5rem}.channel-result small{display:block;overflow-wrap:anywhere}.channel-result b{font-size:.8rem;color:var(--accent)}
+.channel-readonly{display:flex;align-items:center;justify-content:center;gap:.6rem;padding:1rem;color:var(--muted);font-size:.9rem}.channel-readonly svg{width:1.1rem}
+.field select,.field textarea{width:100%;padding:.8rem;border:1px solid var(--border);border-radius:.75rem;background:var(--surface);color:var(--text);font:inherit}.field select option{background:var(--surface);color:var(--text)}
+#channel-form .primary-button,#channel-edit-form .primary-button{margin-top:1rem}#channel-join-form{border-top:1px solid var(--border);margin-top:1rem;padding-top:1rem}
+@keyframes space-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes bubble-in{from{opacity:0;transform:translateY(10px) translateX(-5px) scale(.985)}to{opacity:1;transform:none}}
+@keyframes own-bubble-in{from{opacity:0;transform:translateY(10px) translateX(5px) scale(.985)}to{opacity:1;transform:none}}
+@keyframes bubble-out{to{opacity:0;transform:translateY(-4px) scale(.97)}}
+@keyframes reaction-in{0%{transform:scale(.85)}65%{transform:scale(1.06)}100%{transform:scale(1)}}
+@keyframes delivery-in{from{opacity:.3;transform:scale(.65)}to{opacity:1;transform:scale(1)}}
+@keyframes badge-in{from{opacity:.4;transform:scale(.8)}to{opacity:1;transform:scale(1)}}
+@keyframes dialog-in{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:none}}
+@keyframes backdrop-in{from{opacity:0}to{opacity:1}}
+@media(max-width:760px){.chat-filters{gap:.25rem}.filter-button{padding:.45rem .5rem!important;font-size:.8rem!important}.chat-call-card{min-width:12rem}.call-log .message-bubble{min-width:14rem}.nav-item.active{box-shadow:none}.channel-entry{padding:.6rem 1rem!important}}
+html[data-motion="off"] *,html[data-motion="off"] *::before,html[data-motion="off"] *::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}

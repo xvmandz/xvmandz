@@ -1,0 +1,14 @@
+/config.local.php
+/storage/*
+!/storage/.gitkeep
+!/storage/.htaccess
+*.log
+/tests/.tmp/
+
+/vendor/
+
+__pycache__/
+*.pyc
+*.dump
+.env
+.env.local
