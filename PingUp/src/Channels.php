@@ -13,7 +13,7 @@ function channelsHandle(string $action,array $input,array $user): array {
     if($action==='channels.search'){
         $search=textValue($input['q']??'',80);
         $search='%'.str_replace(['\\','%','_'],['\\\\','\\%','\\_'],$search).'%';
-        $rows=query("SELECT c.id,c.name,c.description,c.slug,c.avatar_file_id,COUNT(cm.user_id) AS member_count,MAX(CASE WHEN cm.user_id=? THEN 1 ELSE 0 END) AS joined FROM conversations c LEFT JOIN conversation_members cm ON cm.conversation_id=c.id WHERE c.type='channel' AND c.visibility='public' AND (c.name ILIKE ? ESCAPE '\\' OR c.slug ILIKE ? ESCAPE '\\') GROUP BY c.id ORDER BY c.updated_at DESC LIMIT 50",[$uid,$search,$search])->fetchAll();
+        $rows=query("SELECT c.id,c.name,c.description,c.slug,c.avatar_file_id,COUNT(cm.user_id) AS member_count,MAX(CASE WHEN cm.user_id=? THEN 1 ELSE 0 END) AS joined FROM conversations c LEFT JOIN conversation_members cm ON cm.conversation_id=c.id WHERE c.type='channel' AND c.visibility='public' AND (c.name ILIKE ? OR c.slug ILIKE ?) GROUP BY c.id ORDER BY c.updated_at DESC LIMIT 50",[$uid,$search,$search])->fetchAll();
         return ['channels'=>array_map(static fn($row)=>['id'=>(int)$row['id'],'name'=>$row['name'],'description'=>$row['description'],'slug'=>$row['slug'],'avatar_url'=>$row['avatar_file_id']?'media.php?id='.$row['avatar_file_id']:null,'member_count'=>(int)$row['member_count'],'joined'=>(bool)$row['joined']],$rows)];
     }
     if($action==='channels.join'){

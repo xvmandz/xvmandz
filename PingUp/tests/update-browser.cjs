@@ -4,7 +4,7 @@ const {chromium}=require('playwright');
 const base=process.env.PINGUP_TEST_URL||'http://127.0.0.1:8190/';
 assert(['localhost','127.0.0.1'].includes(new URL(base).hostname),'Disposable loopback server required');
 (async()=>{
- const browser=await chromium.launch({executablePath:'/usr/bin/chromium',headless:true,args:['--no-sandbox']});
+ const browser=await chromium.launch({executablePath:process.env.PINGUP_BROWSER_EXECUTABLE||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});
  const errors=[],users=[];const password=crypto.randomBytes(24).toString('base64url')+'A1!';
  try{
   for(let i=0;i<3;i++){

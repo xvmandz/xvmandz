@@ -393,7 +393,7 @@ function dispatchAction(string $action, array $input): mixed
             rateLimit('user_search', 90, 60, (string)$userId);
             $search = textValue($input['q'] ?? '', 80);
             $search = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search) . '%';
-            return array_map(fn(array $row) => normalizedUser($row), query("SELECT * FROM users WHERE id<>? AND (username ILIKE ? ESCAPE '\\' OR name ILIKE ? ESCAPE '\\') ORDER BY name LIMIT 50", [$userId, $search, $search])->fetchAll());
+            return array_map(fn(array $row) => normalizedUser($row), query("SELECT * FROM users WHERE id<>? AND (username ILIKE ? OR name ILIKE ?) ORDER BY name LIMIT 50", [$userId, $search, $search])->fetchAll());
         case 'users.profile':
             $profile = query('SELECT * FROM users WHERE id=?', [intValue($input['user_id'] ?? null)])->fetch();
             if (!$profile) {
@@ -507,7 +507,7 @@ function dispatchAction(string $action, array $input): mixed
                 $scope = ' AND m.conversation_id=?';
                 $params[] = $id;
             }
-            return normalizedMessages(query("SELECT m.* FROM messages m JOIN conversation_members cm ON cm.conversation_id=m.conversation_id WHERE cm.user_id=? AND m.deleted=0 AND NOT EXISTS(SELECT 1 FROM message_hidden h WHERE h.message_id=m.id AND h.user_id=cm.user_id) AND m.text ILIKE ? ESCAPE '\\'" . $scope . ' ORDER BY m.id DESC LIMIT 50', $params)->fetchAll(),$userId);
+            return normalizedMessages(query("SELECT m.* FROM messages m JOIN conversation_members cm ON cm.conversation_id=m.conversation_id WHERE cm.user_id=? AND m.deleted=0 AND NOT EXISTS(SELECT 1 FROM message_hidden h WHERE h.message_id=m.id AND h.user_id=cm.user_id) AND m.text ILIKE ?" . $scope . ' ORDER BY m.id DESC LIMIT 50', $params)->fetchAll(),$userId);
         case 'typing.set':
             rateLimit('typing', 60, 60, (string)$userId);
             $id = intValue($input['conversation_id'] ?? null);
