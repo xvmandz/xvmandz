@@ -267,7 +267,9 @@ function memberPermissions(array $conversation, array $user): array
         return array_replace(array_fill_keys(COMMUNITY_PERMISSIONS, false), ['post' => true, 'pin' => true]);
     }
     if ($role === 'owner' || (int)$conversation['owner_id'] === (int)$user['id']) {
-        return array_fill_keys(COMMUNITY_PERMISSIONS, true);
+        $result = array_fill_keys(COMMUNITY_PERMISSIONS, true);
+        if (!empty($conversation['archived_at'])) $result['post'] = false;
+        return $result;
     }
     $custom = is_string($conversation['member_permissions'] ?? null) ? (json_decode($conversation['member_permissions'], true) ?: []) : [];
     $result = [];

@@ -21,7 +21,17 @@ $config = [
     // Set a private invite code before opening your beta.
     'invite_code' => (string) $env('PINGUP_INVITE_CODE', ''),
     'max_users' => max(0, (int) $env('PINGUP_MAX_USERS', 5)),
-    'max_upload_bytes' => min(50 * 1024 * 1024, max(1, (int) $env('PINGUP_MAX_UPLOAD_BYTES', 10 * 1024 * 1024))),
+    // Per-file limits: 50 MB for everyone, 200 MB with PingUp Premium. Chunked uploads keep PHP/Nginx request bodies at 8 MB.
+    'max_upload_bytes' => min(2048 * 1024 * 1024, max(1, (int) $env('PINGUP_MAX_UPLOAD_BYTES', 50 * 1024 * 1024))),
+    'premium_upload_bytes' => min(2048 * 1024 * 1024, max(1, (int) $env('PINGUP_PREMIUM_UPLOAD_BYTES', 200 * 1024 * 1024))),
+    // Outgoing mail (verification, recovery, security notices). Keep the password in config.local.php or the service environment.
+    'smtp_host' => (string)$env('PINGUP_SMTP_HOST', ''),
+    'smtp_port' => (int)$env('PINGUP_SMTP_PORT', 587),
+    'smtp_secure' => (string)$env('PINGUP_SMTP_SECURE', 'tls'), // tls (STARTTLS), ssl (implicit TLS) or none (loopback relay only)
+    'smtp_user' => (string)$env('PINGUP_SMTP_USER', ''),
+    'smtp_password' => (string)$env('PINGUP_SMTP_PASSWORD', ''),
+    'mail_from' => (string)$env('PINGUP_MAIL_FROM', ''),
+    'mail_from_name' => (string)$env('PINGUP_MAIL_FROM_NAME', 'PingUp'),
     'app_origin' => (string) $env('PINGUP_APP_ORIGIN', ''),
     'app_url' => (string) $env('PINGUP_APP_URL', ''),
     'vapid_file' => $storage . '/vapid.json',

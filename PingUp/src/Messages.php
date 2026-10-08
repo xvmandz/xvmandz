@@ -122,7 +122,8 @@ function sendMessage(array $body, array $user, ?array $source = null): array
         if ($payload['threadRoot'] === null) query('UPDATE conversations SET updated_at=? WHERE id=?', [$now, $conversationId]);
         else query('UPDATE messages SET change_seq=change_seq WHERE id=?', [$payload['threadRoot']]);
         query('DELETE FROM typing WHERE conversation_id=? AND user_id=?', [$conversationId, $userId]);
-        query("UPDATE conversation_members SET draft='',draft_updated_at=?,last_read_message_id=GREATEST(last_read_message_id,?),last_delivered_message_id=GREATEST(last_delivered_message_id,?) WHERE conversation_id=? AND user_id=?", [$now, $id, $id, $conversationId, $userId]);
+        // Own feed messages count as read on the sender's devices; comments do not move the feed cursor.
+        if ($payload['threadRoot'] === null) query("UPDATE conversation_members SET draft='',draft_updated_at=?,last_read_message_id=GREATEST(last_read_message_id,?),last_delivered_message_id=GREATEST(last_delivered_message_id,?) WHERE conversation_id=? AND user_id=?", [$now, $id, $id, $conversationId, $userId]);
         $message = messageFor($id, $userId);
         if ($payload['threadRoot'] !== null) commentNotification($message, $payload['threadRoot'], $payload['replyId']);
         else notificationMessage($message);
@@ -170,7 +171,7 @@ function publishDueScheduled(int $limit = 20): int
             if (!$row) return;
             $sender = query('SELECT * FROM users WHERE id=?', [$row['sender_id']])->fetch();
             $payload = json_decode($row['payload'], true) ?: [];
-            $body = ['conversation_id' => (int)$row['conversation_id'], 'client_id' => 'sched:' . $row['id'], 'text' => $payload['text'] ?? '', 'file_id' => $payload['file_id'] ?? null, 'file_ids' => $payload['file_ids'] ?: null, 'sticker_id' => $payload['sticker_id'] ?? null, 'poll' => $payload['poll'] ?? null, 'reply_to' => $payload['reply_to'] ?? null, 'thread_root_id' => $payload['thread_root_id'] ?? null, 'kind' => $payload['kind'] ?? null];
+            $body = ['conversation_id' => (int)$row['conversation_id'], 'client_id' => 'scheduled:' . $row['id'], 'text' => $payload['text'] ?? '', 'file_id' => $payload['file_id'] ?? null, 'file_ids' => $payload['file_ids'] ?: null, 'sticker_id' => $payload['sticker_id'] ?? null, 'poll' => $payload['poll'] ?? null, 'reply_to' => $payload['reply_to'] ?? null, 'thread_root_id' => $payload['thread_root_id'] ?? null, 'kind' => $payload['kind'] ?? null];
             $body = array_filter($body, fn($value) => $value !== null);
             query('SAVEPOINT scheduled_send');
             try {
