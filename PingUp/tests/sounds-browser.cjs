@@ -1,6 +1,72 @@
-'use strict';const assert=require('assert/strict'),crypto=require('crypto');const{chromium}=require('playwright');
-(async()=>{const browser=await chromium.launch({executablePath:process.env.PINGUP_BROWSER_EXECUTABLE||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});try{const base=process.env.PINGUP_TEST_URL||'http://127.0.0.1:8185/';assert(['localhost','127.0.0.1'].includes(new URL(base).hostname));const context=await browser.newContext();const guest=await context.request.get(base+'api.php?action=bootstrap').then(r=>r.json());const data=await context.request.post(base+'api.php?action=auth.register',{headers:{'X-CSRF-Token':guest.data.csrf},data:{username:'sound'+crypto.randomBytes(4).toString('hex'),name:'Sound QA',password:crypto.randomBytes(24).toString('base64url')}}).then(r=>r.json());assert(data.ok);await context.addInitScript(()=>{window.__audio=[];window.Audio=class{constructor(src){this.src=src;this.paused=true;window.__audio.push(this);}play(){this.paused=false;return Promise.resolve();}pause(){this.paused=true;}};});const a=await context.newPage(),b=await context.newPage();for(const page of[a,b]){await page.goto(base);await page.locator('.app-shell').waitFor();await page.locator('.topbar').click();}
- for(const page of[a,b])await page.evaluate(()=>window.PingUpExperience.call({id:999,status:'ringing',incoming:true}));await a.waitForTimeout(300);
- const active=p=>p.evaluate(()=>window.__audio.filter(a=>a.src.includes('ringtone')&&!a.paused).length);assert.equal((await active(a))+(await active(b)),1,'Multiple tabs played ring simultaneously');await a.evaluate(()=>window.PingUpExperience.callEnd());await a.waitForTimeout(100);await b.evaluate(()=>window.PingUpExperience.call({id:999,status:'ringing',incoming:true}));await b.waitForTimeout(200);assert.equal((await active(a))+(await active(b)),1);
- await b.evaluate(()=>window.PingUpExperience.save({dnd:true}));assert.equal(await active(b),0,'DND did not stop ring');await b.reload();await b.locator('.app-shell').waitFor();await b.locator('[data-page="settings"]').first().click();assert(await b.locator('[data-notification-setting="dnd"]').isChecked());console.log('PASS: one ringtone across 2 real tabs using Web Locks; DND stops sound; settings persist. Audio element mocked; subjective listening/autoplay on actual Android not tested.');
- }finally{await browser.close();}})().catch(e=>{console.error(e);process.exit(1)});
+"use strict";
+const assert = require("assert/strict"),
+  crypto = require("crypto");
+const { chromium } = require("playwright");
+(async () => {
+  const browser = await chromium.launch({
+    executablePath: process.env.PINGUP_BROWSER_EXECUTABLE || "/usr/bin/chromium",
+    headless: true,
+    args: ["--no-sandbox"],
+  });
+  try {
+    const base = process.env.PINGUP_TEST_URL || "http://127.0.0.1:8185/";
+    assert(["localhost", "127.0.0.1"].includes(new URL(base).hostname));
+    const context = await browser.newContext();
+    const guest = await context.request.get(base + "api.php?action=bootstrap").then((r) => r.json());
+    const data = await context.request
+      .post(base + "api.php?action=auth.register", {
+        headers: { "X-CSRF-Token": guest.data.csrf },
+        data: { username: "sound" + crypto.randomBytes(4).toString("hex"), name: "Sound QA", password: crypto.randomBytes(24).toString("base64url") },
+      })
+      .then((r) => r.json());
+    assert(data.ok);
+    await context.addInitScript(() => {
+      window.__audio = [];
+      window.Audio = class {
+        constructor(src) {
+          this.src = src;
+          this.paused = true;
+          window.__audio.push(this);
+        }
+        play() {
+          this.paused = false;
+          return Promise.resolve();
+        }
+        pause() {
+          this.paused = true;
+        }
+      };
+    });
+    const a = await context.newPage(),
+      b = await context.newPage();
+    for (const page of [a, b]) {
+      await page.goto(base);
+      await page.locator(".app-shell").waitFor();
+      await page.locator(".app-bar h1").click();
+    }
+    for (const page of [a, b]) await page.evaluate(() => window.PingUpExperience.call({ id: 999, status: "ringing", incoming: true }));
+    await a.waitForTimeout(300);
+    const active = (p) => p.evaluate(() => window.__audio.filter((a) => a.src.includes("ringtone") && !a.paused).length);
+    assert.equal((await active(a)) + (await active(b)), 1, "Multiple tabs played ring simultaneously");
+    await a.evaluate(() => window.PingUpExperience.callEnd());
+    await a.waitForTimeout(100);
+    await b.evaluate(() => window.PingUpExperience.call({ id: 999, status: "ringing", incoming: true }));
+    await b.waitForTimeout(200);
+    assert.equal((await active(a)) + (await active(b)), 1);
+    await b.evaluate(() => window.PingUpExperience.save({ dnd: true }));
+    assert.equal(await active(b), 0, "DND did not stop ring");
+    await b.reload();
+    await b.locator(".app-shell").waitFor();
+    await b.locator('[data-page="settings"]').first().click();
+    await b.locator('[data-open-section="notifications"]').click();
+    assert(await b.locator('.subpage.open [data-setting="dnd"]').isChecked());
+    console.log(
+      "PASS: one ringtone across 2 real tabs using Web Locks; DND stops sound; settings persist. Audio element mocked; subjective listening/autoplay on actual Android not tested.",
+    );
+  } finally {
+    await browser.close();
+  }
+})().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

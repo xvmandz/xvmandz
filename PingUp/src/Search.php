@@ -47,7 +47,9 @@ function searchHandle(array $input, array $user): array
     $q = textValue($input['q'] ?? '', 100);
     $conversationId = !empty($input['conversation_id']) ? intValue($input['conversation_id']) : null;
     if ($conversationId) conversationFor($conversationId, $viewer);
-    $minimum = in_array($type, ['media', 'files'], true) && $conversationId ? 0 : 2;
+    $category = isset($input['category']) && $input['category'] !== '' ? $input['category'] : null;
+    if ($category !== null && !in_array($category, COMMUNITY_CATEGORIES, true)) throw new ApiError('invalid_search_type');
+    $minimum = (in_array($type, ['media', 'files'], true) && $conversationId) || ($category !== null && in_array($type, ['channels', 'groups'], true)) ? 0 : 2;
     if (mb_strlen($q) < $minimum) return ['q' => $q, 'type' => $type, 'too_short' => true, 'people' => [], 'channels' => [], 'groups' => [], 'messages' => [], 'media' => [], 'files' => []];
     $result = ['q' => $q, 'type' => $type, 'too_short' => false, 'people' => [], 'channels' => [], 'groups' => [], 'messages' => [], 'media' => [], 'files' => []];
     $all = $type === 'all';
@@ -55,8 +57,8 @@ function searchHandle(array $input, array $user): array
         rateLimit('people_search', 120, 3600, (string)$viewer);
         $result['people'] = searchPeople($q, $viewer, $all ? 8 : 30);
     }
-    if (($all || $type === 'channels') && !$conversationId) $result['channels'] = communitySearch($q, $viewer, ['channel'], $all ? 6 : 30);
-    if (($all || $type === 'groups') && !$conversationId) $result['groups'] = communitySearch($q, $viewer, ['group'], $all ? 6 : 30);
+    if (($all || $type === 'channels') && !$conversationId) $result['channels'] = communitySearch($q, $viewer, ['channel'], $all ? 6 : 30, $category);
+    if (($all || $type === 'groups') && !$conversationId) $result['groups'] = communitySearch($q, $viewer, ['group'], $all ? 6 : 30, $category);
     if ($all || $type === 'messages') $result['messages'] = searchMessages($q, $viewer, 'messages', $conversationId, $all ? 15 : 50);
     if ($type === 'media') $result['media'] = searchMessages($q, $viewer, 'media', $conversationId, 60);
     if ($type === 'files') $result['files'] = searchMessages($q, $viewer, 'files', $conversationId, 60);

@@ -1,7 +1,7 @@
 'use strict';
-const VERSION='2.0.0-beta.1', CACHE='pingup-static-'+VERSION;
+const VERSION='2.1.0', CACHE='pingup-static-'+VERSION;
 const BASE=new URL('./',self.location.href);
-const ASSETS=['offline.html','offline.js','styles.css','calls.css','experience.css','motion.css','app.js','calls.js','experience.js','locales/uk.json','locales/ru.json','locales/en.json','assets/logo.svg','assets/ribbon.svg','assets/icons/icon-192.png','assets/icons/icon-512.png','assets/icons/maskable-512.png','assets/icons/badge-96.png',...['message','send','ringtone','outgoing','end','error','mention'].map(n=>'assets/sounds/'+n+'.wav')];
+const ASSETS=['offline.html','offline.js','app.css','calls.css','ui.js','app.js','chat.js','pages.js','settings.js','calls.js','experience.js','locales/uk.json','locales/ru.json','locales/en.json','assets/logo.svg','assets/ribbon.svg','assets/icons/icon-192.png','assets/icons/icon-512.png','assets/icons/maskable-512.png','assets/icons/badge-96.png',...['message','send','ringtone','outgoing','end','error','mention'].map(n=>'assets/sounds/'+n+'.wav'),...['wave','love','laugh','cool','thanks','party','ping','sleep','wow','ok','sad','fire'].map(n=>'assets/stickers/'+n+'.svg')];
 const ALLOWED=new Set(ASSETS.map(path=>new URL(path,BASE).pathname));
 function database(){return new Promise((resolve,reject)=>{const request=indexedDB.open('pingup-notification-meta',1);request.onupgradeneeded=()=>request.result.createObjectStore('meta');request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});}
 async function binding(){const db=await database();return new Promise((resolve,reject)=>{const tx=db.transaction('meta');const r=tx.objectStore('meta').get('binding');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);tx.oncomplete=()=>db.close();});}

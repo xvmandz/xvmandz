@@ -138,18 +138,23 @@ async function main() {
     }, bob.csrf);
     const incomingRow = page.locator(`[data-message-id="${incoming.id}"]`);
     await incomingRow.waitFor({ timeout: 15000 });
-    assert.equal(await incomingRow.locator('.message-text').textContent(), inert, 'Message text must be rendered verbatim');
+    // The bubble's time/status metadata floats inside .message-text; compare the text without it.
+    assert.equal(await incomingRow.locator('.message-text').evaluate(el => { const copy = el.cloneNode(true); copy.querySelector('.msg-meta')?.remove(); return copy.textContent; }), inert, 'Message text must be rendered verbatim');
     assert.equal(await incomingRow.locator('.message-text img').count(), 0);
     assert.equal(await page.evaluate(() => window.__pingupXss), undefined);
     assert.equal(await page.locator('#message-input').inputValue(), 'Draft stays while polling');
 
     // Appearance/locales persist through the authenticated profile settings.
     await page.locator('[data-page="settings"]').first().click();
-    await page.locator('[data-theme-choice="light"]').click();
+    await page.locator('[data-open-section="appearance"]').click();
+    await page.locator('.subpage.open [data-theme-choice="light"]').click();
     await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
+    await page.goBack();
     for (const language of ['uk', 'ru', 'en']) {
-      await page.locator(`[data-language="${language}"]`).click();
+      await page.locator('[data-open-section="language"]').click();
+      await page.locator(`.subpage.open input[value="${language}"]`).click();
       await page.waitForFunction(lang => document.documentElement.lang === lang, language);
+      await page.locator('.settings-page h1').waitFor();
       assert.ok(await page.locator('.settings-page h1').textContent());
     }
     await page.reload({ waitUntil: 'networkidle' });

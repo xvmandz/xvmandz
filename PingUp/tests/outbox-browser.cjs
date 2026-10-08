@@ -1,13 +1,119 @@
-'use strict';const assert=require('assert/strict'),crypto=require('crypto');const{chromium}=require('playwright');
-(async()=>{const browser=await chromium.launch({executablePath:process.env.PINGUP_BROWSER_EXECUTABLE||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});try{
- const base=process.env.PINGUP_TEST_URL||'http://127.0.0.1:8185/';assert(['localhost','127.0.0.1'].includes(new URL(base).hostname));const people=[];
- for(let i=0;i<2;i++){const context=await browser.newContext();const guest=await context.request.get(base+'api.php?action=bootstrap').then(r=>r.json());const response=await context.request.post(base+'api.php?action=auth.register',{headers:{'X-CSRF-Token':guest.data.csrf},data:{username:'outbox'+crypto.randomBytes(4).toString('hex'),name:'Outbox QA '+i,password:crypto.randomBytes(24).toString('base64url'),locale:'en'}}).then(r=>r.json());assert(response.ok,JSON.stringify(response.error));const actor={context,...response.data};actor.api=async(action,data={},post=false)=>{const url=new URL('api.php',base);url.searchParams.set('action',action);if(!post)for(const[k,v]of Object.entries(data))url.searchParams.set(k,v);const response=await(post?context.request.post(url.href,{headers:{'X-CSRF-Token':actor.csrf},data}):context.request.get(url.href)).then(r=>r.json());assert(response.ok,action);return response.data;};people.push(actor);}
- const[a,b]=people,conversation=await a.api('conversations.create',{type:'direct',user_id:b.user.id},true),page=await a.context.newPage();await page.goto(base);await page.locator('.app-shell').waitFor();await page.evaluate(()=>navigator.serviceWorker.ready.then(()=>true));await page.locator('[data-page="chats"]').first().click();await page.locator('[data-open-conversation="'+conversation.id+'"]').first().click();await page.locator('#message-input').waitFor();await a.context.setOffline(true);await page.locator('#message-input').fill('Durable offline message');await page.locator('#message-input').press('Enter');await page.locator('.message-group.failed').waitFor();
- const count=()=>page.evaluate(()=>new Promise((resolve,reject)=>{const r=indexedDB.open('pingup-private-outbox',1);r.onsuccess=()=>{const db=r.result,request=db.transaction('pending').objectStore('pending').count();request.onsuccess=()=>{resolve(request.result);db.close();};};r.onerror=()=>reject(r.error);}));assert.equal(await count(),1);
- await page.reload();await page.locator('#offline-title').waitFor();await a.context.setOffline(false);await page.goto(base);await page.locator('.app-shell').waitFor();let messages=[];
- for(let i=0;i<30;i++){messages=(await b.api('messages.list',{conversation_id:conversation.id})).messages;if(messages.some(m=>m.text==='Durable offline message'))break;await page.waitForTimeout(200);}
- assert.equal(messages.filter(m=>m.text==='Durable offline message').length,1);await page.waitForTimeout(500);assert.equal(await count(),0);
- const message=messages.find(m=>m.text==='Durable offline message');await page.evaluate(m=>window.PingUpExperience.queue(m),message);await page.reload();await page.locator('.app-shell').waitFor();await page.waitForTimeout(1500);messages=(await b.api('messages.list',{conversation_id:conversation.id})).messages;assert.equal(messages.filter(m=>m.client_id===message.client_id).length,1,'Replay duplicated confirmed send');assert.equal(await count(),0);
- await page.evaluate(m=>window.PingUpExperience.queue(m),{...message,client_id:'unsent:'+crypto.randomUUID(),id:'unsent-logout',text:'Clear at logout'});assert.equal(await count(),1);await page.locator('[data-page="settings"]').first().click();await page.locator('[data-action="logout"]').click();await page.locator('[data-action="confirm-logout"]').click();await page.locator('#auth-form').waitFor();assert.equal(await count(),0);
- console.log('PASS: offline input persisted across reload; reconnect delivery; server idempotency after replay; outbox cleared on explicit logout.');
- }finally{await browser.close();}})().catch(e=>{console.error(e);process.exit(1)});
+"use strict";
+const assert = require("assert/strict"),
+  crypto = require("crypto");
+const { chromium } = require("playwright");
+(async () => {
+  const browser = await chromium.launch({
+    executablePath: process.env.PINGUP_BROWSER_EXECUTABLE || "/usr/bin/chromium",
+    headless: true,
+    args: ["--no-sandbox"],
+  });
+  try {
+    const base = process.env.PINGUP_TEST_URL || "http://127.0.0.1:8185/";
+    assert(["localhost", "127.0.0.1"].includes(new URL(base).hostname));
+    const people = [];
+    for (let i = 0; i < 2; i++) {
+      const context = await browser.newContext();
+      const guest = await context.request.get(base + "api.php?action=bootstrap").then((r) => r.json());
+      const response = await context.request
+        .post(base + "api.php?action=auth.register", {
+          headers: { "X-CSRF-Token": guest.data.csrf },
+          data: {
+            username: "outbox" + crypto.randomBytes(4).toString("hex"),
+            name: "Outbox QA " + i,
+            password: crypto.randomBytes(24).toString("base64url"),
+            locale: "en",
+          },
+        })
+        .then((r) => r.json());
+      assert(response.ok, JSON.stringify(response.error));
+      const actor = { context, ...response.data };
+      actor.api = async (action, data = {}, post = false) => {
+        const url = new URL("api.php", base);
+        url.searchParams.set("action", action);
+        if (!post) for (const [k, v] of Object.entries(data)) url.searchParams.set(k, v);
+        const response = await (
+          post ? context.request.post(url.href, { headers: { "X-CSRF-Token": actor.csrf }, data }) : context.request.get(url.href)
+        ).then((r) => r.json());
+        assert(response.ok, action);
+        return response.data;
+      };
+      people.push(actor);
+    }
+    const [a, b] = people,
+      conversation = await a.api("conversations.create", { type: "direct", user_id: b.user.id }, true),
+      page = await a.context.newPage();
+    await page.goto(base);
+    await page.locator(".app-shell").waitFor();
+    await page.evaluate(() => navigator.serviceWorker.ready.then(() => true));
+    await page.locator('[data-page="chats"]').first().click();
+    await page
+      .locator('[data-open-conversation="' + conversation.id + '"]')
+      .first()
+      .click();
+    await page.locator("#message-input").waitFor();
+    await a.context.setOffline(true);
+    await page.locator("#message-input").fill("Durable offline message");
+    await page.locator("#message-input").press("Enter");
+    await page.locator(".message-group.failed").waitFor();
+    const count = () =>
+      page.evaluate(
+        () =>
+          new Promise((resolve, reject) => {
+            const r = indexedDB.open("pingup-private-outbox", 1);
+            r.onsuccess = () => {
+              const db = r.result,
+                request = db.transaction("pending").objectStore("pending").count();
+              request.onsuccess = () => {
+                resolve(request.result);
+                db.close();
+              };
+            };
+            r.onerror = () => reject(r.error);
+          }),
+      );
+    assert.equal(await count(), 1);
+    await page.reload();
+    await page.locator("#offline-title").waitFor();
+    await a.context.setOffline(false);
+    await page.goto(base);
+    await page.locator(".app-shell").waitFor();
+    let messages = [];
+    for (let i = 0; i < 30; i++) {
+      messages = (await b.api("messages.list", { conversation_id: conversation.id })).messages;
+      if (messages.some((m) => m.text === "Durable offline message")) break;
+      await page.waitForTimeout(200);
+    }
+    assert.equal(messages.filter((m) => m.text === "Durable offline message").length, 1);
+    await page.waitForTimeout(500);
+    assert.equal(await count(), 0);
+    const message = messages.find((m) => m.text === "Durable offline message");
+    await page.evaluate((m) => window.PingUpExperience.queue(m), message);
+    await page.reload();
+    await page.locator(".app-shell").waitFor();
+    await page.waitForTimeout(1500);
+    messages = (await b.api("messages.list", { conversation_id: conversation.id })).messages;
+    assert.equal(messages.filter((m) => m.client_id === message.client_id).length, 1, "Replay duplicated confirmed send");
+    assert.equal(await count(), 0);
+    await page.evaluate((m) => window.PingUpExperience.queue(m), {
+      ...message,
+      client_id: "unsent:" + crypto.randomUUID(),
+      id: "unsent-logout",
+      text: "Clear at logout",
+    });
+    assert.equal(await count(), 1);
+    await page.locator('[data-page="settings"]').first().click();
+    await page.locator('[data-action="logout"]').click();
+    await page.locator('.pu-sheet-root [data-confirm="1"]').click();
+    await page.locator("#auth-form").waitFor();
+    assert.equal(await count(), 0);
+    console.log(
+      "PASS: offline input persisted across reload; reconnect delivery; server idempotency after replay; outbox cleared on explicit logout.",
+    );
+  } finally {
+    await browser.close();
+  }
+})().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

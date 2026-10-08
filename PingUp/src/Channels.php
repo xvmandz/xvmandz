@@ -109,11 +109,13 @@ function communityCard(array $row, int $userId): array
     ];
 }
 
-function communitySearch(string $q, int $userId, array $types, int $limit = 30): array
+function communitySearch(string $q, int $userId, array $types, int $limit = 30, ?string $category = null): array
 {
     $search = '%' . likeEscape($q) . '%';
     $typeSql = placeholders($types);
-    $rows = query("SELECT c.id,c.type,c.name,c.description,c.slug,c.avatar_file_id,c.settings,(SELECT COUNT(*) FROM conversation_members m WHERE m.conversation_id=c.id) AS member_count,EXISTS(SELECT 1 FROM conversation_members m WHERE m.conversation_id=c.id AND m.user_id=?) AS joined FROM conversations c WHERE c.type IN ($typeSql) AND c.visibility='public' AND c.archived_at IS NULL AND (c.name ILIKE ? OR c.slug ILIKE ? OR c.description ILIKE ?) AND NOT EXISTS(SELECT 1 FROM conversation_bans b WHERE b.conversation_id=c.id AND b.user_id=?) ORDER BY (lower(c.slug)=lower(?)) DESC,(c.name ILIKE ?) DESC,c.updated_at DESC LIMIT " . max(1, min(50, $limit)), array_merge([$userId], $types, [$search, $search, $search, $userId, ltrim($q, '@'), likeEscape($q) . '%']))->fetchAll();
+    // Category browsing lists public communities of one category without a text query.
+    $categorySql = $category !== null ? " AND c.settings->>'category'=?" : '';
+    $rows = query("SELECT c.id,c.type,c.name,c.description,c.slug,c.avatar_file_id,c.settings,(SELECT COUNT(*) FROM conversation_members m WHERE m.conversation_id=c.id) AS member_count,EXISTS(SELECT 1 FROM conversation_members m WHERE m.conversation_id=c.id AND m.user_id=?) AS joined FROM conversations c WHERE c.type IN ($typeSql) AND c.visibility='public' AND c.archived_at IS NULL AND (c.name ILIKE ? OR c.slug ILIKE ? OR c.description ILIKE ?)$categorySql AND NOT EXISTS(SELECT 1 FROM conversation_bans b WHERE b.conversation_id=c.id AND b.user_id=?) ORDER BY (lower(c.slug)=lower(?)) DESC,(c.name ILIKE ?) DESC,c.updated_at DESC LIMIT " . max(1, min(50, $limit)), array_merge([$userId], $types, [$search, $search, $search], $category !== null ? [$category] : [], [$userId, ltrim($q, '@'), likeEscape($q) . '%']))->fetchAll();
     return array_map(fn($row) => communityCard($row, $userId), $rows);
 }
 
