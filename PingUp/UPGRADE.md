@@ -1,4 +1,75 @@
-# PingUp 2.0.0-beta.1 — PostgreSQL и обновление
+# PingUp 2.1.0 — обновление
+
+Этот документ состоит из двух частей: обновление работающей установки **2.0.0-beta.1 → 2.1.0** (ниже) и, для старых установок, переход **1.1 → 2.0** на PostgreSQL (приложение в конце). Если вы ещё на 1.1, сначала выполните приложение (импорт создаст сразу схему 5), затем пункты 3–7 этой части.
+
+## 1. Что меняется
+
+- Схема БД **4 → 5** (`database/migrations/005_messenger_2_1.sql`): только добавления — новые таблицы (контакты, блокировки, приватность, подписки Premium, аудит, обратная связь, e-mail, приглашения, баны, статистика, опросы, стикеры, папки, отложенные сообщения, загрузка частями) и столбцы. Пользовательские данные не удаляются. Для существующих данных вычисляются: роль `owner` у владельцев групп и каналов, курсор доставки = курсор прочтения, время закрепления = время изменения.
+- Фронтенд заменён: `styles.css`, `experience.css`, `motion.css` удалены; добавлены `app.css`, `ui.js`, `chat.js`, `pages.js`, `settings.js`, `assets/stickers/*`. Service Worker 2.1.0 сам удалит кэш 2.0 после активации.
+- Новые фоновые задачи: отправка писем (`bin/mail-worker.php`) и cron `bin/cleanup.php` (публикует отложенные сообщения, удаляет брошенные загрузки и устаревшие строки). Отложенные публикации дополнительно выпускаются при синхронизации клиентов, но cron обязателен для надёжности.
+- Лимит файла по умолчанию: 50 МБ, с Premium 200 МБ (`max_upload_bytes`, `premium_upload_bytes`). Файлы идут частями по 8 МБ, поэтому лимиты Nginx/PHP остаются небольшими: `client_max_body_size 20m`, `upload_max_filesize=16M`, `post_max_size=20M`.
+
+## 2. Резервная копия
+
+Включите maintenance, остановите `pingup-push`, дождитесь окончания звонков. Сделайте дамп и копию приватного хранилища:
+
+```bash
+pg_dump --format=custom --host=127.0.0.1 --username=pingup --file=/PRIVATE_BACKUP_PATH/pingup-before-2.1.dump pingup
+sudo tar -C /var/www/pingup -czf /PRIVATE_BACKUP_PATH/pingup-storage-before-2.1.tgz storage config.local.php
+```
+
+## 3. Код и конфигурация
+
+Распакуйте архив в новый каталог, перенесите `config.local.php` и приватное `storage/` (uploads, sessions, `vapid.json`). Новый параметр `app_secret` не обязателен: при первом обращении к e-mail функциям создаётся `storage/app-secret.key` (0600) — сохраняйте его в резервных копиях, иначе выданные коды станут недействительными (сами аккаунты не пострадают).
+
+Добавьте в `config.local.php` (пример — в `config.local.example.php`):
+
+```php
+'max_upload_bytes' => 50 * 1024 * 1024,
+'premium_upload_bytes' => 200 * 1024 * 1024,
+'smtp_host' => 'smtp.example.com',
+'smtp_port' => 587,
+'smtp_secure' => 'tls',          // tls = STARTTLS, ssl = 465, none — только локальный relay
+'smtp_user' => 'pingup@example.com',
+'smtp_password' => 'SMTP_PASSWORD',
+'mail_from' => 'no-reply@example.com',
+'mail_from_name' => 'PingUp',
+```
+
+Пароль SMTP храните только в `config.local.php` (0640 root:www-data) или в окружении сервиса (`PINGUP_SMTP_*`), никогда в public/. Без SMTP приложение работает, а письма копятся в очереди (`bin/doctor.php` показывает её размер).
+
+## 4. Миграция
+
+```bash
+sudo -u www-data php bin/migrate.php     # Applied migration 005_messenger_2_1.sql / PostgreSQL schema 5 ready.
+sudo -u www-data php bin/doctor.php
+```
+
+Миграция выполняется в одной транзакции под advisory lock; при ошибке база остаётся в схеме 4. Повторный запуск ничего не меняет. Роль, выполняющая миграцию, должна владеть таблицами (как и для 2.0).
+
+## 5. Службы, cron, веб-сервер
+
+```bash
+sudo cp deploy/pingup-mail.service /etc/systemd/system/ && sudo systemctl enable --now pingup-mail
+sudo cp deploy/pingup.cron /etc/cron.d/pingup
+sudo cp deploy/php-fpm-pingup.ini /etc/php/8.3/fpm/conf.d/90-pingup.ini && sudo systemctl reload php8.3-fpm
+sudo nginx -t && sudo systemctl reload nginx     # client_max_body_size 20m из deploy/nginx.conf
+sudo systemctl start pingup-push
+```
+
+Пути в unit-файлах и cron адаптируйте к вашему каталогу. Если администратора ещё нет — `php bin/create-admin.php` (обратная связь и выдача Premium доступны только роли admin).
+
+## 6. Проверка перед открытием трафика
+
+Вход двух пользователей; отправка с галочками (одна → две серые после открытия приложения получателем → цветные после просмотра); контакты и приватность; поиск; создание канала с оформлением; файл больше 8 МБ (загрузка частями) и проверка 50 МБ; обращение со скриншотом и ответ администратора; e-mail-код (реальный SMTP); обновление PWA (кнопка «Обновить»). На Android проверьте кнопку «Назад», клавиатуру и жесты на реальном устройстве.
+
+## 7. Откат
+
+До новых записей: остановите трафик, восстановите дамп `pingup-before-2.1.dump` (`pg_restore --clean`) и код 2.0. После начала работы 2.1 откат к 2.0 возможен восстановлением того же дампа с потерей данных, созданных в 2.1; схема 5 обратно в 4 автоматически не преобразуется. Код 2.0 со схемой 5 не запускайте: `bin/migrate.php` 2.0 откажется работать с неизвестной схемой.
+
+---
+
+# Приложение: переход 1.1 (SQLite) → 2.0 (PostgreSQL)
 
 Предыдущая сборка 1.1 сохранена отдельно. Новая версия требует PostgreSQL 15+ (проверена 17.11), расширение pg_trgm и PHP pdo_pgsql. При запуске HTTP схема автоматически не создаётся: миграция выполняется CLI перед запуском трафика. Продакшен app.pingup.cc здесь не менялся.
 
