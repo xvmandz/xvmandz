@@ -98,7 +98,8 @@ const { chromium } = require("playwright");
     await page.locator("#offline-title").waitFor();
     await page.waitForFunction(() => !!document.querySelector("#offline-retry")?.textContent);
     await b.context.setOffline(false);
-    await page.locator("#offline-retry").click();
+    // offline.js reloads by itself on the "online" event; the Retry button is only needed if that has not happened yet.
+    await page.locator("#offline-retry").click({ timeout: 1500 }).catch(() => {});
     await page.locator(".app-shell").waitFor({ timeout: 15000 });
     console.log(
       "PASS: Service Worker showNotification call while tab inactive (instrumented, original API also invoked); privacy; dedup; read closure; static-only cache; offline recovery with valid session. No real provider Push delivery or Android installation was exercised.",

@@ -143,7 +143,8 @@ assert(["localhost", "127.0.0.1"].includes(new URL(base).hostname), "Isolated se
     await b.page.locator("#offline-title").waitFor();
     assert(await b.page.locator("#offline-title").innerText());
     await b.context.setOffline(false);
-    await b.page.locator("#offline-retry").click();
+    // offline.js reloads by itself on the "online" event; the Retry button is only needed if that has not happened yet.
+    await b.page.locator("#offline-retry").click({ timeout: 1500 }).catch(() => {});
     await b.page.locator(".app-shell").waitFor({ timeout: 15000 });
     assert.deepEqual(errors, []);
     console.log(

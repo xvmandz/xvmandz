@@ -7,7 +7,7 @@ require $root.'/src/bootstrap.php';require $root.'/src/actions.php';require $roo
 function check(bool $ok,string $label):void{if(!$ok)throw new RuntimeException('FAIL: '.$label);}
 $name=(string)query('SELECT current_database()')->fetchColumn();
 check(str_starts_with($name,'pingup_test_')&&(int)query('SELECT COUNT(*) FROM users')->fetchColumn()===0,'empty disposable database required');
-check((int)query('SELECT MAX(version) FROM schema_migrations')->fetchColumn()===4,'PostgreSQL schema 4');
+check((int)query('SELECT MAX(version) FROM schema_migrations')->fetchColumn()===PINGUP_SCHEMA_VERSION,'PostgreSQL schema '.PINGUP_SCHEMA_VERSION);
 query("INSERT INTO users(username,name,password_hash,last_seen,created_at) VALUES('alice','Alice','test',1,1),('bob','Bob','test',1,1),('outsider','Outsider','test',1,1)");
 $alice=query('SELECT * FROM users WHERE id=1')->fetch();$bob=query('SELECT * FROM users WHERE id=2')->fetch();$outsider=query('SELECT * FROM users WHERE id=3')->fetch();
 $keys=Minishlink\WebPush\VAPID::createVapidKeys();file_put_contents(config()['vapid_file'],json_encode($keys));chmod(config()['vapid_file'],0600);

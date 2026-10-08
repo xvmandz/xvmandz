@@ -255,6 +255,7 @@ function conversationFor(int $id, int $userId): array
     if (!$conversation) {
         throw new ApiError('conversation_not_found', 404);
     }
+    conversationTypes([], [['conversation_id' => $id, 'conversation_type' => $conversation['type']]]);
     return $conversation;
 }
 
@@ -343,12 +344,24 @@ function normalizedMessages(array $rows,int $userId): array
     if($pollIds)$context['polls']=pollObjects($pollIds,$userId);
     if($stickerIds)foreach(query('SELECT id,pack_id,file_id,asset,emoji FROM stickers WHERE id IN ('.placeholders($stickerIds).')',$stickerIds)->fetchAll() as $row)$context['stickers'][$row['id']]=stickerObject($row);
     $roots=array_map('intval',array_column(array_filter($rows,fn($row)=>$row['thread_root_id']===null),'id'));
-    if($roots&&array_filter($rows,fn($row)=>($row['conversation_type']??'channel')==='channel')){
+    $types=conversationTypes(array_column($rows,'conversation_id'),$rows);
+    if($roots&&in_array('channel',$types,true)){
         foreach(query('SELECT thread_root_id,COUNT(*) AS count FROM messages WHERE thread_root_id IN ('.placeholders($roots).') AND deleted=0 GROUP BY thread_root_id',$roots)->fetchAll() as $row)$context['comments'][$row['thread_root_id']]=(int)$row['count'];
         foreach(query('SELECT message_id,views FROM message_views WHERE message_id IN ('.placeholders($roots).')',$roots)->fetchAll() as $row)$context['views'][$row['message_id']]=(int)$row['views'];
     }
     foreach(query('SELECT message_id FROM message_stars WHERE user_id=? AND message_id IN ('.placeholders($ids).')',array_merge([$userId],$ids))->fetchAll() as $row)$context['stars'][$row['message_id']]=true;
     return array_map(fn($row)=>normalizedMessage($row,$userId,$context),$rows);
+}
+
+/** Conversation types for message rows, cached per request (conversationFor() primes the cache). */
+function conversationTypes(array $ids, array $rows = []): array
+{
+    static $cache = [];
+    foreach ($rows as $row) if (isset($row['conversation_type'])) $cache[(int)$row['conversation_id']] = $row['conversation_type'];
+    $ids = array_values(array_unique(array_map('intval', $ids)));
+    $missing = array_values(array_filter($ids, fn(int $id) => !isset($cache[$id])));
+    if ($missing) foreach (query('SELECT id,type FROM conversations WHERE id IN (' . placeholders($missing) . ')', $missing)->fetchAll() as $row) $cache[(int)$row['id']] = $row['type'];
+    return array_intersect_key($cache, array_flip($ids));
 }
 
 function forwardSource(?array $source): ?array

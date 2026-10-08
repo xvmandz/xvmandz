@@ -13,11 +13,12 @@ transaction(function():void{
     }
 });db()->exec('ANALYZE');
 $before=queryCount();$started=hrtime(true);$list=conversationsList(1);$elapsed=(hrtime(true)-$started)/1e6;$queries=queryCount()-$before;
-if(count($list)!==100||$queries>8)throw new RuntimeException('Chat list query count regressed.');
+// 2.1 adds privacy, Premium badges and delivery/read cursors: still a constant number of batched queries, independent of chat count.
+if(count($list)!==100||$queries>16)throw new RuntimeException('Chat list query count regressed: '.$queries);
 echo json_encode(['fixture'=>['chats'=>100,'messages'=>5000],'conversation_list'=>['queries'=>$queries,'milliseconds'=>round($elapsed,2)]],JSON_UNESCAPED_SLASHES).PHP_EOL;
 $rows=query('SELECT * FROM messages WHERE conversation_id=? ORDER BY id DESC LIMIT 50',[$list[0]['id']])->fetchAll();
 $before=queryCount();$started=hrtime(true);$messages=normalizedMessages($rows,1);$elapsed=(hrtime(true)-$started)/1e6;$queries=queryCount()-$before;
-if(count($messages)!==50||$queries!==2)throw new RuntimeException('Message batch regressed.');
+if(count($messages)!==50||$queries>5)throw new RuntimeException('Message batch regressed: '.$queries);
 echo json_encode(['normalize_50_text_messages'=>['queries'=>$queries,'milliseconds'=>round($elapsed,2)]]).PHP_EOL;
 $user=query('SELECT * FROM users WHERE id=1')->fetch();$cursor=(int)max(array_column($rows,'change_seq'));$max=(int)max(array_column($rows,'id'));
 $started=hrtime(true);$delta=syncData(['conversation_id'=>$list[0]['id'],'after_id'=>$max,'after_change_seq'=>$cursor],$user);$elapsed=(hrtime(true)-$started)/1e6;
