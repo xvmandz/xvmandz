@@ -1406,5 +1406,13 @@
  "calls.empty_hint": "Voice and video calls with your contacts appear here. Start one below or from a chat header.",
  "channel.no_bans_hint": "Banned members can't come back through a link. Ban people from the member list.",
  "channel.audit_empty_hint": "Changes to settings, roles, bans and invite links are listed here.",
- "admin.no_tickets_hint": "New user requests appear here. Change the filter to see closed ones."
+ "admin.no_tickets_hint": "New user requests appear here. Change the filter to see closed ones.",
+ "find.total_messages": "Messages in this chat: {count}",
+ "find.summary": "Matches: {count} · messages in chat: {total}",
+ "find.placeholder": "Search in “{name}”",
+ "find.hint": "Type a word or phrase — the whole chat history is searched, however long.",
+ "find.no_results_hint": "Try a shorter word or a different form.",
+ "find.position": "{index} of {count}",
+ "find.older": "Previous match",
+ "find.newer": "Next match"
 }

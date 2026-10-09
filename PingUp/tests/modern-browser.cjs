@@ -111,10 +111,62 @@ assert(['localhost', '127.0.0.1'].includes(new URL(base).hostname), 'Disposable 
     await page.locator('.account-card').click();
     await page.locator('.subpage.open').waitFor();
 
+    // Stage 2. Direct chat header: call, video and search; in-chat search with counts, jump and navigator.
+    await page.goBack();
+    const direct = await owner.api('conversations.create', { type: 'direct', user_id: reader.user.id }, true);
+    const sent = [];
+    for (let i = 1; i <= 70; i++) sent.push(await owner.api('messages.send', { conversation_id: direct.id, text: i % 7 === 0 ? `Find the NEEDLE number ${i}` : `Filler line ${i}`, client_id: crypto.randomUUID() }, true));
+    const needles = sent.filter((m, i) => (i + 1) % 7 === 0).reverse(); // newest first, 10 matches
+    await page.goto(base + '?chat=' + direct.id);
+    const head = page.locator('.chat-head');
+    for (const action of ['call', 'video-call', 'chat-search']) await head.locator(`[data-action="${action}"]`).waitFor({ state: 'visible', timeout: 10000 });
+    await head.locator('[data-action="chat-search"]').click();
+    const find = page.locator('.find-page');
+    await find.locator('[data-find-summary]').filter({ hasText: '70' }).waitFor();
+    await find.locator('[data-find-input]').fill('needle');
+    await find.locator('[data-find-summary]').filter({ hasText: 'Matches: 10' }).waitFor();
+    assert.equal(await find.locator('.find-row').count(), 10);
+    assert.equal(await find.locator('.find-row mark').first().textContent(), 'NEEDLE', 'case-insensitive highlight keeps original text');
+    if (process.env.PINGUP_SHOTS) await page.screenshot({ path: process.env.PINGUP_SHOTS + '/find-page.png' });
+    const oldest = needles[needles.length - 1];
+    await find.locator(`[data-find-id="${oldest.id}"]`).click();
+    await find.waitFor({ state: 'detached' });
+    const target = page.locator(`.msg[data-message-id="${oldest.id}"]`);
+    await target.waitFor();
+    await page.waitForFunction(id => { const el = document.querySelector(`.msg[data-message-id="${id}"]`), box = el?.closest('.messages, .scroller, .chat-scroll')?.getBoundingClientRect() || { top: 0, bottom: innerHeight }; const r = el?.getBoundingClientRect(); return r && r.top >= box.top - 2 && r.bottom <= box.bottom + 2; }, oldest.id);
+    const nav = page.locator('.find-nav');
+    await nav.filter({ hasText: '10 of 10' }).waitFor();
+    assert(await nav.locator('.find-up').isDisabled(), 'no older match after the oldest');
+    await nav.locator('.find-down').click();
+    await nav.filter({ hasText: '9 of 10' }).waitFor();
+    await page.locator(`.msg[data-message-id="${needles[8].id}"]`).waitFor();
+    if (process.env.PINGUP_SHOTS) await page.screenshot({ path: process.env.PINGUP_SHOTS + '/find-nav.png' });
+    await nav.locator('[data-find-open]').click();
+    await find.locator('.find-row').first().waitFor();
+    assert.equal(await find.locator('[data-find-input]').inputValue(), 'needle', 'search state is kept when reopened');
+    await page.goBack();
+    await find.waitFor({ state: 'detached' });
+    await nav.locator('[data-find-end]').click();
+    await nav.waitFor({ state: 'detached' });
+
+    // Global search is a full screen (not a popup); a result opens the chat and the screen closes.
+    await page.locator('[data-action="chat-back"]').click();
+    await page.locator('.list-pane .app-bar [data-action="search"]').click();
+    const screen = page.locator('.search-screen');
+    await screen.waitFor();
+    assert.equal(await page.locator('.pu-sheet-root').count(), 0, 'no popup sheet');
+    const box = await screen.boundingBox();
+    assert(box.width >= 389 && box.height >= 700, 'search covers the screen');
+    await screen.locator('[data-search-type="messages"]').click();
+    await screen.locator('[data-global-search]').fill('number 63');
+    await screen.locator(`[data-search-message="${sent[62].id}"]`).click();
+    await screen.waitFor({ state: 'detached' });
+    await page.locator(`.msg[data-message-id="${sent[62].id}"]`).waitFor();
+
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
     assert(overflow <= 1, 'mobile overflow ' + overflow);
     assert.deepEqual(errors, []);
-    console.log('PASS: link/discover preview without auto-join (public posts, private hidden), search pill focus, contextual empty states, single Profile entry.');
+    console.log('PASS: link/discover preview without auto-join (public posts, private hidden), search pill focus, contextual empty states, single Profile entry; direct header call/video/search, in-chat search counts + jump into unloaded history + navigator, full-screen global search.');
   } catch (error) {
     console.error('Browser errors', errors);
     throw error;

@@ -176,11 +176,32 @@
   Pages.startDirect = startDirect;
 
   /* ---------- Global search ---------- */
+  // One search screen at a time; opening a chat from it (result, join, profile → message) closes it.
+  let activeSearch = null;
+  P.on('chat-open', () => activeSearch?.close());
+  function searchScreen(label, head, body) {
+    activeSearch?.close();
+    const main = $('#main-content');
+    const el = document.createElement('section');
+    el.className = 'subpage search-screen';
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-label', label);
+    el.innerHTML = `<header class="search-screen-top">${head}</header><div class="scroller"><div class="page-content page-inner">${body}</div></div>`;
+    main.append(el);
+    requestAnimationFrame(() => el.classList.add('open'));
+    let closed = false;
+    const layer = PU.pushLayer(() => { closed = true; el.classList.remove('open'); setTimeout(() => el.remove(), PU.reducedMotion() ? 0 : 260); }, 'search');
+    const api = { el, close: () => !closed && PU.closeLayer(layer), get closed() { return closed; } };
+    el.addEventListener('click', event => { if (event.target.closest('[data-subpage-back]')) api.close(); });
+    activeSearch = api;
+    return api;
+  }
   Pages.search = (initial = '', { conversationId = null, type = null } = {}) => {
     const conv = conversationId ? P.findConversation(conversationId) : null;
     const types = conv ? ['messages', 'media', 'files'] : ['all', 'people', 'channels', 'groups', 'messages', 'media', 'files'];
     let current = type && types.includes(type) ? type : types[0];
-    const s = PU.sheet({ title: conv ? t('search.in_chat', { name: P.convName(conv) }) : t('search.title'), full: true, wide: true, className: 'search-sheet', body: `<label class="searchbar" style="margin:0 0 6px">${icon('search')}<input data-global-search type="search" autocomplete="off" enterkeyhint="search" placeholder="${esc(t('search.hint'))}" value="${esc(initial)}"></label><div class="chips" style="padding:4px 0 10px">${types.map(x => `<button class="chip ${x === current ? 'active' : ''}" data-search-type="${x}">${esc(t(`search.type_${x}`))}</button>`).join('')}</div><div data-search-results><p class="hint">${esc(t('search.privacy_hint'))}</p></div>` });
+    // A full screen (not a popup): slides in over the current section, Back returns exactly where the user was.
+    const s = searchScreen(conv ? t('search.in_chat', { name: P.convName(conv) }) : t('search.title'), `<div class="search-screen-head"><button class="icon-btn" data-subpage-back aria-label="${esc(t('common.back'))}">${icon('back')}</button><label class="searchbar">${icon('search')}<input data-global-search type="search" autocomplete="off" enterkeyhint="search" placeholder="${esc(conv ? t('find.placeholder', { name: P.convName(conv) }) : t('search.hint'))}" value="${esc(initial)}"></label></div><div class="chips search-types">${types.map(x => `<button class="chip ${x === current ? 'active' : ''}" data-search-type="${x}">${esc(t(`search.type_${x}`))}</button>`).join('')}</div>`, `<div data-search-results><p class="hint">${esc(t('search.privacy_hint'))}</p></div>`);
     const input = $('[data-global-search]', s.el), target = $('[data-search-results]', s.el);
     let timer = null, controller = null;
     const run = () => {
@@ -202,7 +223,6 @@
       if (typeButton) { current = typeButton.dataset.searchType; $$('[data-search-type]', s.el).forEach(b => b.classList.toggle('active', b === typeButton)); run(); }
       const result = event.target.closest('[data-search-message]');
       if (result) { s.close(); const id = Number(result.dataset.searchMessage), c = Number(result.dataset.conversation); setTimeout(() => window.PingUpChat?.open(c, { messageId: id }), 50); }
-      if (event.target.closest('[data-profile],[data-community-info],[data-join-public]')) setTimeout(() => s.close(), 0);
     });
     setTimeout(() => input.focus(), 50);
     if (initial || (conv && ['media', 'files'].includes(current))) run();

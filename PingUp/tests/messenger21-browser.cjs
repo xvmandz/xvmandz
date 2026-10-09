@@ -118,7 +118,7 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR
     // Global search finds a contact by @username.
     await page.locator('.list-pane .app-bar [data-action="search"]').click();
     await page.locator('[data-global-search]').fill('@' + d.user.username);
-    await page.locator(`.pu-sheet [data-profile="${d.user.id}"]`).waitFor();
+    await page.locator(`.search-screen [data-profile="${d.user.id}"]`).waitFor();
     await page.goBack();
 
     // Feedback with a screenshot from Settings.

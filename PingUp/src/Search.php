@@ -37,6 +37,35 @@ function searchMessages(string $q, int $viewer, string $type, ?int $conversation
     return normalizedMessages($rows, $viewer);
 }
 
+// In-chat search for long histories: keyset pages (newest first), match count capped for speed, total visible messages.
+const FIND_COUNT_CAP = 10000;
+function conversationFind(array $input, int $viewer): array
+{
+    rateLimit('chat_find', 150, 60, (string)$viewer);
+    $conversationId = intValue($input['conversation_id'] ?? null);
+    conversationFor($conversationId, $viewer);
+    $q = textValue($input['q'] ?? '', 100);
+    $before = isset($input['before_id']) && $input['before_id'] !== '' ? intValue($input['before_id']) : null;
+    $limit = max(1, min(50, (int)($input['limit'] ?? 30)));
+    $visible = 'm.conversation_id=? AND m.deleted=0 AND m.thread_root_id IS NULL AND NOT EXISTS(SELECT 1 FROM message_hidden h WHERE h.message_id=m.id AND h.user_id=?)';
+    $base = [$conversationId, $viewer];
+    $totalMessages = (int)query("SELECT COUNT(*) FROM messages m WHERE $visible", $base)->fetchColumn();
+    if (mb_strlen(trim($q)) < 1) return ['q' => $q, 'total_messages' => $totalMessages, 'total_matches' => 0, 'capped' => false, 'messages' => [], 'has_more' => false];
+    $match = $visible . ' AND m.text ILIKE ?';
+    $params = array_merge($base, ['%' . likeEscape($q) . '%']);
+    $result = ['q' => $q, 'total_messages' => $totalMessages];
+    if ($before === null) {
+        $count = (int)query("SELECT COUNT(*) FROM (SELECT 1 FROM messages m WHERE $match LIMIT " . (FIND_COUNT_CAP + 1) . ') x', $params)->fetchColumn();
+        $result['total_matches'] = min($count, FIND_COUNT_CAP);
+        $result['capped'] = $count > FIND_COUNT_CAP;
+    }
+    $pageSql = $match . ($before !== null ? ' AND m.id<?' : '');
+    $rows = query("SELECT m.* FROM messages m WHERE $pageSql ORDER BY m.id DESC LIMIT " . ($limit + 1), $before !== null ? array_merge($params, [$before]) : $params)->fetchAll();
+    $result['has_more'] = count($rows) > $limit;
+    $result['messages'] = normalizedMessages(array_slice($rows, 0, $limit), $viewer);
+    return $result;
+}
+
 function searchHandle(array $input, array $user): array
 {
     $viewer = (int)$user['id'];

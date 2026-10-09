@@ -296,6 +296,137 @@
     } catch (error) { P.failed(error); }
   }
 
+  /* ---------- Search inside the conversation: full-screen results + in-chat navigator ---------- */
+  // Results come newest first in keyset pages, so histories of any length stay cheap; the navigator walks them.
+  function findHighlight(text, q) {
+    const plain = String(text || ''), lower = plain.toLocaleLowerCase(), needle = q.toLocaleLowerCase();
+    let at = lower.indexOf(needle);
+    if (!needle || at < 0) return esc(plain.slice(0, 140));
+    const start = Math.max(0, at - 40), parts = [];
+    let pos = start;
+    const end = Math.min(plain.length, at + needle.length + 100);
+    while (at >= 0 && at < end) {
+      parts.push(esc(plain.slice(pos, at)), `<mark>${esc(plain.slice(at, at + needle.length))}</mark>`);
+      pos = at + needle.length;
+      at = lower.indexOf(needle, pos);
+    }
+    parts.push(esc(plain.slice(pos, end)));
+    return (start > 0 ? '…' : '') + parts.join('') + (end < plain.length ? '…' : '');
+  }
+  function findRow(m, q) {
+    const who = sender(m);
+    return `<button class="find-row" data-find-id="${m.id}">${P.avatar(who, 'sm')}<span class="find-body"><span class="find-top"><strong>${esc(Number(m.sender_id) === Number(state.user.id) ? t('chat.you') : who.name)}</strong><time>${esc(P.listTime(m.created_at))}</time></span><span class="find-text">${findHighlight(m.text, q)}</span></span></button>`;
+  }
+  function findSummary(f) {
+    if (!f.q) return esc(t('find.total_messages', { count: f.totalMessages ?? 0 }));
+    if (f.loading && !f.results.length) return esc(t('common.loading'));
+    const count = f.capped ? `${f.total}+` : String(f.total);
+    return esc(t('find.summary', { count, total: f.totalMessages ?? 0 }));
+  }
+  function openFind(initial = null) {
+    if (!chat.screen || !chat.conv || $('.find-page', chat.screen)) return;
+    const conversationId = Number(chat.conv.id);
+    const f = chat.find?.conversationId === conversationId && initial === null ? chat.find : { conversationId, q: initial || '', results: [], total: 0, capped: false, totalMessages: null, hasMore: false, index: -1 };
+    chat.find = f;
+    hideFindNav();
+    const page = document.createElement('section');
+    page.className = 'find-page';
+    page.setAttribute('role', 'dialog');
+    page.setAttribute('aria-label', t('chat.search_messages'));
+    page.innerHTML = `<header class="find-head"><button class="icon-btn" data-find-close aria-label="${esc(t('common.back'))}">${icon('back')}</button><label class="searchbar">${icon('search')}<input data-find-input type="search" autocomplete="off" enterkeyhint="search" placeholder="${esc(t('find.placeholder', { name: P.convName(chat.conv) }))}" value="${esc(f.q)}"></label></header><div class="find-meta"><span data-find-summary aria-live="polite"></span><span class="find-chips"><button class="chip" data-find-media="media">${icon('image')}${esc(t('search.type_media'))}</button><button class="chip" data-find-media="files">${icon('file')}${esc(t('search.type_files'))}</button></span></div><div class="find-list scroller" data-find-list></div>`;
+    chat.screen.append(page);
+    requestAnimationFrame(() => page.classList.add('open'));
+    const input = $('[data-find-input]', page), listEl = $('[data-find-list]', page), summary = $('[data-find-summary]', page);
+    let timer = null, controller = null, closed = false;
+    const sentinel = document.createElement('div'); sentinel.className = 'find-more';
+    const observer = new IntersectionObserver(entries => { if (entries.some(e => e.isIntersecting) && f.hasMore && !f.loading) load(true); }, { root: listEl, rootMargin: '300px' });
+    const paint = () => {
+      summary.innerHTML = findSummary(f);
+      if (!f.q) listEl.innerHTML = `<p class="hint find-hint">${esc(t('find.hint'))}</p>`;
+      else if (!f.results.length && !f.loading) listEl.innerHTML = P.empty('search', t('search.no_results'), t('find.no_results_hint'));
+      else { listEl.innerHTML = f.results.map(m => findRow(m, f.q)).join(''); listEl.append(sentinel); observer.observe(sentinel); }
+    };
+    async function load(more = false) {
+      controller?.abort();
+      controller = new AbortController();
+      f.loading = true;
+      if (!more) paint();
+      const q = f.q;
+      try {
+        const data = await P.api('messages.find', { conversation_id: conversationId, q, limit: 40, before_id: more ? f.results[f.results.length - 1]?.id : '' }, { signal: controller.signal });
+        if (closed || q !== f.q) return;
+        f.totalMessages = data.total_messages;
+        if (!more) { f.results = []; f.total = data.total_matches || 0; f.capped = !!data.capped; }
+        f.results.push(...data.messages);
+        f.hasMore = data.has_more;
+        f.loading = false;
+        if (more) { listEl.insertAdjacentHTML('beforeend', data.messages.map(m => findRow(m, q)).join('')); listEl.append(sentinel); summary.innerHTML = findSummary(f); }
+        else paint();
+      } catch (error) {
+        f.loading = false;
+        if (error.name !== 'AbortError' && !closed) { listEl.innerHTML = `<p class="form-error pad">${esc(P.errText(error))}</p>`; }
+      }
+    }
+    input.addEventListener('input', () => {
+      f.q = input.value.trim();
+      clearTimeout(timer);
+      if (!f.q) { controller?.abort(); f.results = []; f.total = 0; f.loading = false; paint(); load(); return; }
+      timer = setTimeout(() => load(), 250);
+    });
+    input.addEventListener('keydown', event => { if (event.key === 'Enter' && f.results.length) { event.preventDefault(); pick(0); } });
+    const finish = () => {
+      closed = true; observer.disconnect(); controller?.abort(); clearTimeout(timer);
+      if (chat.find === f && f.index >= 0 && f.results[f.index]) showFindNav(); // Back returns to the navigator
+      page.classList.remove('open');
+      setTimeout(() => page.remove(), PU.reducedMotion() ? 0 : 220);
+    };
+    const layer = PU.pushLayer(finish, 'find');
+    const pick = index => { f.index = index; PU.closeLayer(layer); showFindNav(); jumpTo(f.results[index].id); };
+    page.addEventListener('click', event => {
+      if (event.target.closest('[data-find-close]')) { PU.closeLayer(layer); return; }
+      const media = event.target.closest('[data-find-media]');
+      if (media) { PU.closeLayer(layer); setTimeout(() => window.PingUpPages?.search('', { conversationId, type: media.dataset.findMedia }), 30); return; }
+      const row = event.target.closest('[data-find-id]');
+      if (row) pick(f.results.findIndex(m => Number(m.id) === Number(row.dataset.findId)));
+    });
+    if (f.q && f.results.length) { paint(); const at = f.results[f.index]; if (at) $(`[data-find-id="${at.id}"]`, listEl)?.scrollIntoView({ block: 'center' }); }
+    else load();
+    setTimeout(() => input.focus(), PU.reducedMotion() ? 0 : 180);
+  }
+  function hideFindNav() { $('.find-nav', chat.screen)?.remove(); chat.screen?.classList.remove('find-active'); }
+  function showFindNav() {
+    const f = chat.find;
+    if (!chat.screen || !f?.results.length) return;
+    let nav = $('.find-nav', chat.screen);
+    if (!nav) {
+      nav = document.createElement('div');
+      nav.className = 'find-nav';
+      const composer = $('.composer-wrap', chat.screen);
+      if (composer) composer.before(nav); else chat.screen.append(nav);
+      chat.screen.classList.add('find-active');
+    }
+    const count = f.capped ? `${f.total}+` : f.total;
+    nav.innerHTML = `<button class="find-nav-label" data-find-open>${icon('search')}<span><b>${esc(f.q)}</b><small>${esc(t('find.position', { index: f.index + 1, count }))}</small></span></button><button class="icon-btn find-up" data-find-step="1" aria-label="${esc(t('find.older'))}" ${f.index >= f.results.length - 1 && !f.hasMore ? 'disabled' : ''}>${icon('chevron')}</button><button class="icon-btn find-down" data-find-step="-1" aria-label="${esc(t('find.newer'))}" ${f.index <= 0 ? 'disabled' : ''}>${icon('chevron')}</button><button class="icon-btn" data-find-end aria-label="${esc(t('common.close'))}">${icon('close')}</button>`;
+  }
+  async function stepFind(direction) {
+    const f = chat.find;
+    if (!f) return;
+    const next = f.index + direction;
+    if (next < 0) return;
+    if (next >= f.results.length) {
+      if (!f.hasMore || f.loading) return;
+      f.loading = true;
+      try {
+        const data = await P.api('messages.find', { conversation_id: f.conversationId, q: f.q, limit: 40, before_id: f.results[f.results.length - 1].id });
+        f.results.push(...data.messages); f.hasMore = data.has_more;
+      } catch (error) { P.failed(error); } finally { f.loading = false; }
+      if (next >= f.results.length) { showFindNav(); return; }
+    }
+    f.index = next;
+    showFindNav();
+    jumpTo(f.results[next].id);
+  }
+
   /* ---------- Opening / closing ---------- */
   function headerStatus(conv) {
     const typing = state.typing.get(Number(conv.id));
@@ -308,7 +439,7 @@
   function headerHTML(conv) {
     const direct = conv.type === 'direct', peerUser = P.peer(conv);
     const canCall = direct && peerUser && Number(peerUser.id) !== Number(state.user.id);
-    return `<header class="chat-head"><button class="icon-btn" data-action="chat-back" aria-label="${esc(t('common.back'))}">${icon('back')}</button><button class="chat-title chat-person" data-action="chat-info">${P.convAvatar(conv, 'sm')}<span class="chat-title-text"><strong><span>${esc(P.convName(conv))}</span>${direct ? P.badges(peerUser) : ''}</strong><span class="chat-status ${state.typing.get(Number(conv.id))?.length ? 'live' : ''}">${headerStatus(conv)}</span></span></button><div class="actions">${canCall ? `<button class="icon-btn desktop-only" data-action="call" aria-label="${esc(t('chat.call'))}">${icon('phone')}</button><button class="icon-btn desktop-only" data-action="video-call" aria-label="${esc(t('calls.video'))}">${icon('video')}</button>` : ''}<button class="icon-btn desktop-only" data-action="chat-search" aria-label="${esc(t('chat.search_messages'))}">${icon('search')}</button><button class="icon-btn" data-action="chat-menu" aria-label="${esc(t('chat.more'))}">${icon('vmore')}</button></div></header>`;
+    return `<header class="chat-head"><button class="icon-btn" data-action="chat-back" aria-label="${esc(t('common.back'))}">${icon('back')}</button><button class="chat-title chat-person" data-action="chat-info">${P.convAvatar(conv, 'sm')}<span class="chat-title-text"><strong><span>${esc(P.convName(conv))}</span>${direct ? P.badges(peerUser) : ''}</strong><span class="chat-status ${state.typing.get(Number(conv.id))?.length ? 'live' : ''}">${headerStatus(conv)}</span></span></button><div class="actions">${canCall ? `<button class="icon-btn" data-action="call" aria-label="${esc(t('chat.call'))}">${icon('phone')}</button><button class="icon-btn" data-action="video-call" aria-label="${esc(t('calls.video'))}">${icon('video')}</button>` : ''}<button class="icon-btn" data-action="chat-search" aria-label="${esc(t('chat.search_messages'))}">${icon('search')}</button><button class="icon-btn" data-action="chat-menu" aria-label="${esc(t('chat.more'))}">${icon('vmore')}</button></div></header>`;
   }
   function composerHTML(conv) {
     if (conv.community_archived) return `<div class="composer-wrap"><div class="readonly-bar channel-readonly">${icon('archive')}<span>${esc(t('channel.archived_readonly'))}</span></div></div>`;
@@ -350,6 +481,7 @@
   async function open(id, { messageId = null } = {}) {
     id = Number(id);
     if (!state.user) return;
+    P.emit('chat-open', id);
     if (state.page !== 'chats') { P.setPage('chats'); }
     let conv = P.findConversation(id);
     if (!conv) return;
@@ -419,6 +551,7 @@
     resetComposerState();
     chat.observer?.disconnect();
     chat.olderObserver?.disconnect();
+    chat.find = null;
     const screen = chat.screen;
     state.active = null;
     chat.conv = null;
@@ -1086,7 +1219,7 @@
     PU.menu([
       direct && PU.isMobile() ? { icon: 'phone', label: t('chat.call'), action: () => window.PingUpCalls?.start(peerUser, 'audio') } : null,
       direct && PU.isMobile() ? { icon: 'video', label: t('calls.video'), action: () => window.PingUpCalls?.start(peerUser, 'video') } : null,
-      { icon: 'search', label: t('chat.search_messages'), action: () => window.PingUpPages?.search('', { conversationId: conv.id }) },
+      { icon: 'search', label: t('chat.search_messages'), action: () => openFind() },
       { icon: 'image', label: t('chat.shared_media'), action: () => window.PingUpPages?.search('', { conversationId: conv.id, type: 'media' }) },
       { icon: 'info', label: t(direct ? 'profile.view' : conv.type === 'channel' ? 'channel.info' : 'group.info'), action: chatInfo },
       ...modes.map(mode => ({ icon: mode === 'none' ? 'bellOff' : 'bell', label: t(`notify.mode_${mode}`), active: conv.notification_mode === mode, action: () => setMode(mode) })),
@@ -1201,7 +1334,10 @@
     if (d.pollSubmit) { const m = findMessage(d.pollSubmit), box = el.closest('.poll'); vote(m, $$('.poll-option.selected', box).map(b => Number(b.dataset.pollOption))); return; }
     if (d.pollVoters) { pollVoters(findMessage(d.pollVoters)); return; }
     if (d.openThread) { window.PingUpThread?.open(findMessage(d.openThread), chat.conv); return; }
-    if (d.hashtag) { window.PingUpPages?.search('#' + d.hashtag, { conversationId: state.active }); return; }
+    if (d.hashtag) { openFind('#' + d.hashtag); return; }
+    if (d.findStep) { stepFind(Number(d.findStep)); return; }
+    if (el.hasAttribute('data-find-open')) { openFind(); return; }
+    if (el.hasAttribute('data-find-end')) { chat.find = null; hideFindNav(); return; }
     if (d.mention) { window.PingUpPages?.search('@' + d.mention, { type: 'people' }); return; }
     if (d.insertEmoji) { insertEmoji(d.insertEmoji); return; }
     if (d.panel) { togglePanel(d.panel); return; }
@@ -1212,7 +1348,7 @@
       case 'chat-back': close(); break;
       case 'chat-info': chatInfo(); break;
       case 'chat-menu': chatMenu(el); break;
-      case 'chat-search': window.PingUpPages?.search('', { conversationId: state.active }); break;
+      case 'chat-search': openFind(); break;
       case 'call': case 'video-call': { const user = P.peer(chat.conv); if (window.PingUpCalls && user?.id !== state.user.id) window.PingUpCalls.start(user, d.action === 'call' ? 'audio' : 'video'); break; }
       case 'older': loadOlder(); break;
       case 'jump-down': chat.newCount = 0; scrollBottom(true); break;

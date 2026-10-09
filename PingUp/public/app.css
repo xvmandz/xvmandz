@@ -297,6 +297,33 @@ svg.i { width: 22px; height: 22px; flex: none; display: block; }
 .chat-status { font-size: 0.8em; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color var(--t); }
 .chat-status.live { color: var(--accent); }
 .chat-head .actions { display: flex; }
+@media (max-width: 420px) { .chat-head .actions .icon-btn { width: 38px; } .chat-title { gap: 8px; padding: 4px; } }
+/* In-chat search: full-screen page inside the chat screen + navigator above the composer. */
+.find-page { position: absolute; inset: 0; z-index: 8; display: flex; flex-direction: column; background: var(--bg); transform: translateY(16px); opacity: 0; transition: transform var(--t) var(--ease), opacity var(--t) var(--ease); }
+.find-page.open { transform: none; opacity: 1; }
+.find-head { display: flex; align-items: center; gap: 4px; padding: calc(var(--safe-t) + 8px) 8px 6px 4px; border-bottom: 1px solid var(--border); }
+.find-head .searchbar { flex: 1; margin: 0; }
+.find-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 14px; color: var(--muted); font-size: 13px; flex-wrap: wrap; }
+.find-chips { display: flex; gap: 6px; }
+.find-chips .chip svg.i { width: 16px; height: 16px; }
+.find-list { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 6px calc(var(--safe-b) + 12px); contain: content; }
+.find-row { display: flex; gap: 10px; width: 100%; padding: 10px 8px; border-radius: 14px; text-align: left; align-items: flex-start; content-visibility: auto; contain-intrinsic-size: auto 64px; }
+.find-row:active, .find-row:hover { background: var(--hover); }
+.find-body { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.find-top { display: flex; justify-content: space-between; gap: 8px; }
+.find-top strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.find-top time { color: var(--muted); font-size: 12px; flex: none; }
+.find-text { color: var(--soft); font-size: 14px; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.find-text mark, .find-nav mark { background: color-mix(in srgb, var(--accent) 28%, transparent); color: inherit; border-radius: 4px; padding: 0 1px; }
+.find-hint { padding: 24px 16px; text-align: center; }
+.find-more { height: 1px; }
+.find-nav { display: flex; align-items: center; gap: 2px; padding: 4px 6px 4px 12px; background: var(--bg-2); border-top: 1px solid var(--border); position: relative; z-index: 2; }
+.find-nav-label { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; text-align: left; color: var(--accent); }
+.find-nav-label span { display: grid; min-width: 0; }
+.find-nav-label b { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.find-nav-label small { color: var(--muted); font-size: 12px; }
+.find-nav .find-up svg { transform: rotate(-90deg); }
+.find-nav .find-down svg { transform: rotate(90deg); }
 .select-bar { position: absolute; inset: 0; display: flex; align-items: center; gap: 4px; padding: calc(var(--safe-t) + 6px) 4px 6px; background: var(--surface); z-index: 4; animation: fade var(--t) var(--ease); }
 .select-bar strong { flex: 1; font-size: 1.05em; padding-left: 6px; }
 @keyframes fade { from { opacity: 0; } }
@@ -462,6 +489,7 @@ svg.i { width: 22px; height: 22px; flex: none; display: block; }
 .typing-dots i:nth-child(2) { animation-delay: 0.15s; } .typing-dots i:nth-child(3) { animation-delay: 0.3s; }
 @keyframes typing { 0%, 60%, 100% { opacity: 0.3; transform: none; } 30% { opacity: 1; transform: translateY(-3px); } }
 .jump-down { position: absolute; right: 14px; bottom: calc(100% + 12px); width: 46px; height: 46px; border-radius: 50%; background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-sm); display: grid; place-items: center; color: var(--soft); transition: opacity var(--t), transform var(--t) var(--spring); z-index: 3; }
+.chat-screen.find-active .jump-down { bottom: calc(100% + 64px); }
 .jump-down.hidden-btn { opacity: 0; transform: translateY(16px) scale(0.8); pointer-events: none; }
 .jump-down .badge { position: absolute; top: -6px; right: -4px; }
 
@@ -810,6 +838,12 @@ html[data-motion="off"] *, html[data-motion="off"] *::before, html[data-motion="
 .subpage .app-bar { padding-left: 4px; }
 .subpage .app-bar h1 { font-size: 1.25em; }
 .subpage + .subpage { z-index: 36; }
+.search-screen { z-index: 40; }
+.search-screen-top { padding: calc(var(--safe-t) + 8px) 8px 0 4px; background: var(--bg-2); border-bottom: 1px solid var(--border); }
+.search-screen-head { display: flex; align-items: center; gap: 4px; }
+.search-screen-head .searchbar { flex: 1; margin: 0; }
+.search-screen .search-types { padding: 8px 4px 10px; }
+.search-screen .page-content { padding-top: 8px; }
 details summary { cursor: pointer; color: var(--soft); }
 .segmented button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 8px; }
 .segmented button svg { width: 18px; height: 18px; }
