@@ -1,0 +1,16 @@
+{
+  "name": "pingup/messenger",
+  "description": "PingUp background Web Push worker",
+  "type": "project",
+  "require": {
+    "php": ">=8.2",
+    "minishlink/web-push": "^10.1"
+  },
+  "config": {
+    "allow-plugins": false,
+    "sort-packages": true,
+    "platform": {
+      "php": "8.2.0"
+    }
+  }
+}

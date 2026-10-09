@@ -1,0 +1,15 @@
+Options -Indexes
+DirectoryIndex index.php
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+<Files "sw.js">
+Header set Cache-Control "no-store"
+</Files>
+<Files "manifest.webmanifest">
+Header set Cache-Control "no-cache"
+</Files>
+</IfModule>
+AddType application/manifest+json .webmanifest

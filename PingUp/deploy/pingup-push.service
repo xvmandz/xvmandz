@@ -1,0 +1,20 @@
+[Unit]
+Description=PingUp Web Push queue worker
+After=network-online.target
+Wants=network-online.target
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/pingup
+ExecStart=/usr/bin/php /var/www/pingup/bin/push-worker.php
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/www/pingup/storage
+UMask=0077
+[Install]
+WantedBy=multi-user.target
