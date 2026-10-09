@@ -41,6 +41,10 @@
 | Push-доставка через FCM/Mozilla/Apple, WebRTC между сетями, Coturn | Как в 2.0: требуют приёмки на сервере владельца |
 | Сквозное шифрование | Нет: сервер хранит содержимое переписки; WebRTC шифруется транспортом |
 
+## Обновление с 2.0
+
+`sudo bash update.sh pingup-php-2.1.0-postgresql.zip` — резервная копия, миграция, код, службы, проверка и откат одной командой; подробности в [UPGRADE.md](UPGRADE.md#0-автоматическое-обновление-одной-командой).
+
 ## Запуск
 
 Нужны PHP CLI/FPM с pdo_pgsql, fileinfo, mbstring, curl, openssl, session, json (желательно zip и gmp/bcmath); PostgreSQL с pg_trgm.
