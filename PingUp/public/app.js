@@ -292,6 +292,22 @@
     const base = [['all', t('chat.all')], ['unread', t('chat.unread')], ['personal', t('chat.personal')], ['groups', t('chat.groups')], ['channels', t('chat.channels')]];
     return base.concat(state.folders.map(f => [`folder:${f.id}`, f.name]));
   }
+  // Each list explains what belongs there and offers the next step instead of a bare "empty".
+  function filterEmpty() {
+    const f = state.showArchive ? 'archive' : state.filter.startsWith('folder:') ? 'folder' : state.filter;
+    const btn = (attrs, iconName, label) => `<button class="btn primary" ${attrs}>${icon(iconName)}${esc(t(label))}</button>`;
+    const variants = {
+      all: ['chats', 'chat.empty_title', 'chat.empty_text', btn('data-action="create-menu"', 'plus', 'chat.create')],
+      unread: ['checks', 'chat.empty_unread', 'chat.empty_unread_hint', `<button class="btn" data-filter="all">${esc(t('chat.all'))}</button>`],
+      personal: ['chats', 'chat.empty_personal', 'chat.empty_personal_hint', btn('data-action="new-message"', 'edit', 'create.message')],
+      groups: ['users', 'chat.empty_groups', 'chat.empty_groups_hint', btn('data-new-community="group"', 'plus', 'create.group')],
+      channels: ['channels', 'chat.empty_channels', 'chat.empty_channels_hint', btn('data-page="channels"', 'search', 'chat.find_channels')],
+      folder: ['folder', 'chat.empty_folder', 'chat.empty_folder_hint', btn('data-action="edit-folders"', 'edit', 'chat.edit_folder')],
+      archive: ['archive', 'chat.empty_archive', 'chat.empty_archive_hint', ''],
+    };
+    const [iconName, title, text, action] = variants[f] || variants.all;
+    return empty(iconName, t(title), t(text), action);
+  }
   function matchesFilter(c) {
     const f = state.filter;
     if (f === 'unread') return c.unread > 0;
@@ -350,7 +366,7 @@
     if (!state.showArchive && archived.length && !query && state.filter === 'all') rows.push({ key: 'archive', html: `<span class="avatar">${icon('archive')}</span><span class="chat-row-body"><span class="chat-row-top"><span class="chat-row-title"><span>${esc(t('chat.archive'))}</span></span></span><span class="chat-row-bottom"><span class="chat-row-preview">${esc(archived.slice(0, 3).map(convName).join(', '))}</span>${archived.some(c => c.unread) ? `<b class="badge muted-badge">${archived.reduce((n, c) => n + (c.unread || 0), 0)}</b>` : ''}</span></span>`, cls: 'archive-row', attrs: { action: 'open-archive' } });
     for (const conv of visible) rows.push({ key: String(conv.id), html: rowHTML(conv), cls: Number(conv.id) === Number(state.active) ? 'active' : '', attrs: { openConversation: String(conv.id) } });
     if (!rows.length) {
-      const content = query ? empty('search', t('chat.no_results'), t('chat.search_global_hint'), `<button class="btn primary" data-action="search-global" data-q="${esc(state.chatQuery)}">${icon('search')}${esc(t('search.title'))}</button>`) : empty('chats', t(state.filter === 'all' ? 'chat.empty_title' : 'chat.filter_empty'), t(state.filter === 'all' ? 'chat.empty_text' : ''), state.filter === 'all' ? `<button class="btn primary" data-action="create-menu">${icon('plus')}${esc(t('chat.create'))}</button>` : '');
+      const content = query ? empty('search', t('chat.no_results'), t('chat.search_global_hint'), `<button class="btn primary" data-action="search-global" data-q="${esc(state.chatQuery)}">${icon('search')}${esc(t('search.title'))}</button>`) : filterEmpty();
       if (list.dataset.empty !== content) { list.innerHTML = content; list.dataset.empty = content; }
       return;
     }
@@ -585,6 +601,8 @@
       case 'search': window.PingUpPages?.search(); break;
       case 'search-global': window.PingUpPages?.search(d.q || ''); break;
       case 'my-profile': openSettings('profile'); break;
+      case 'new-message': window.PingUpPages?.newMessage(); break;
+      case 'edit-folders': openSettings('folders'); break;
       case 'open-archive': state.showArchive = true; renderPage(); break;
       case 'close-archive': state.showArchive = false; renderPage(); break;
       case 'retry-bootstrap': bootstrap(); break;

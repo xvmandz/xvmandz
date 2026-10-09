@@ -365,7 +365,7 @@
     if (callId && previous) return previous.api('calls.end',{call_id:callId,device_id:deviceId},{method:'POST'}).catch(() => {});
     return Promise.resolve();
   }
-  async function renderHistory(container) {
+  async function renderHistory(container, options = {}) {
     if (!hooks || !container) return;
     const epoch = generation;
     container.setAttribute('aria-busy','true');
@@ -374,7 +374,8 @@
       if (epoch !== generation || !container.isConnected) return;
       container.replaceChildren();
       if (!response.entries?.length) {
-        const empty = document.createElement('p'); empty.className = 'pu-call-history-empty'; empty.textContent = tr('historyEmpty'); container.append(empty);
+        if (options.emptyHTML) container.innerHTML = options.emptyHTML;
+        else { const empty = document.createElement('p'); empty.className = 'pu-call-history-empty'; empty.textContent = tr('historyEmpty'); container.append(empty); }
       }
       for (const entry of response.entries || []) {
         const row = document.createElement('div'); row.className = 'pu-call-history-row';

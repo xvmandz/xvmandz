@@ -132,6 +132,10 @@ assert(['localhost', '127.0.0.1'].includes(new URL(base).hostname), 'Disposable 
     assert(privateChannel.invite_token);
     assert(!(await c.api('channels.search', { q: 'Private room' })).channels.some(x => x.id === privateChannel.id));
     await c.page.goto(base + '?invite=' + privateChannel.invite_token);
+    // The link only previews the channel; membership starts with the explicit button.
+    await c.page.locator('.community-preview [data-preview-join]').waitFor();
+    assert(!(await c.api('conversations.list')).some(x => x.id === privateChannel.id), 'opening an invite must not subscribe');
+    await c.page.locator('.community-preview [data-preview-join]').click();
     await c.page.locator('.chat-person strong').filter({ hasText: 'Private room' }).waitFor();
     const rotated = await a.api('channels.update', { conversation_id: privateChannel.id, rotate_invite: true }, true);
     assert.notEqual(rotated.invite_token, privateChannel.invite_token);

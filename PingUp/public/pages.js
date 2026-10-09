@@ -111,7 +111,7 @@
   P.registerPage('calls', {
     render(el) {
       el.innerHTML = `<header class="app-bar"><h1>${esc(t('calls.title'))}</h1><button class="icon-btn" data-new-call aria-label="${esc(t('calls.new'))}">${icon('plus')}</button></header><div class="scroller"><div class="page-inner pad" id="calls-history"></div></div>`;
-      window.PingUpCalls?.renderHistory($('#calls-history', el));
+      window.PingUpCalls?.renderHistory($('#calls-history', el), { emptyHTML: P.empty('calls', t('calls.empty_title'), t('calls.empty_hint'), `<button class="btn primary" data-new-call>${icon('phone')}${esc(t('calls.new'))}</button>`) });
     },
   });
 
@@ -259,21 +259,33 @@
   P.on('contact-state', () => { if (state.page === 'contacts') loadContacts(); });
 
   /* ---------- Communities ---------- */
-  Pages.joinSlug = async slug => {
-    try {
-      const conv = await P.post('channels.join', { slug });
-      P.retainConversation(conv);
-      window.PingUpChat?.open(conv.id);
-    } catch (error) { P.failed(error); }
-  };
-  Pages.joinInvite = async token => {
-    try {
-      const conv = await P.post('channels.join', { invite_token: token });
-      P.retainConversation(conv);
-      window.PingUpChat?.open(conv.id);
-      P.toast(t('channel.joined'), 'success');
-    } catch (error) { P.failed(error); }
-  };
+  // Links never subscribe on their own: show the community first, join only on an explicit tap.
+  Pages.joinSlug = slug => previewCommunity({ slug });
+  Pages.joinInvite = token => previewCommunity({ invite_token: token });
+  async function previewCommunity(params) {
+    let card;
+    try { card = await P.api('channels.preview', params); }
+    catch (error) { P.failed(error); return; }
+    if (card.joined) { window.PingUpChat?.open(card.id); return; }
+    const channel = card.type === 'channel';
+    const count = card.member_count !== null ? t(channel ? 'channel.subscribers' : 'chat.participants', { count: card.member_count }) : '';
+    const sub = [count, card.visibility === 'public' && card.slug ? '@' + card.slug : t('channel.private')].filter(Boolean).join(' · ');
+    const recent = card.recent?.length ? `<div class="group-title">${esc(t('channel.preview_recent'))}</div><div class="group-card preview-posts">${card.recent.map(m => `<div class="preview-post"><div>${PU.format(m.text)}</div><small>${esc(P.listTime(m.created_at))}</small></div>`).join('')}</div>` : '';
+    const s = PU.sheet({ title: '', label: card.name, className: 'profile-sheet community-preview', body: `<div class="channel-cover" style="${card.cover_url ? `background-image:url('${esc(card.cover_url)}')` : card.accent ? `background:linear-gradient(135deg, ${esc(card.accent)}, var(--accent-2))` : ''}"></div><div class="profile-hero">${P.convAvatar({ id: card.id, type: card.type, name: card.name, avatar_url: card.avatar_url }, 'xl')}<h2>${esc(card.name)}</h2><p>${esc(sub)}</p>${card.tagline ? `<p>${esc(card.tagline)}</p>` : ''}</div>${card.description ? `<div class="group-card pad preview-about">${esc(card.description)}</div>` : ''}${card.welcome ? `<div class="group-card pad preview-about">${PU.format(card.welcome)}</div>` : ''}${recent}<div class="preview-actions">${card.banned ? `<p class="hint">${esc(t('error.community_banned'))}</p>` : `<button class="btn primary block" data-preview-join>${icon(channel ? 'channels' : 'users')}${esc(t(channel ? 'channel.join' : 'group.join'))}</button>`}<button class="btn ghost block" data-preview-close>${esc(t('common.cancel'))}</button></div>` });
+    s.el.addEventListener('click', async event => {
+      if (event.target.closest('[data-preview-close]')) { s.close(); return; }
+      const button = event.target.closest('[data-preview-join]');
+      if (!button || button.disabled) return;
+      button.disabled = true;
+      try {
+        const conv = await P.post('channels.join', params);
+        P.retainConversation(conv);
+        s.close();
+        window.PingUpChat?.open(conv.id);
+        P.toast(t(channel ? 'channel.joined' : 'group.joined'), 'success');
+      } catch (error) { button.disabled = false; P.failed(error); }
+    });
+  }
   async function joinPublic(id) {
     const existing = P.findConversation(id);
     if (existing) { window.PingUpChat?.open(id); return; }
@@ -463,7 +475,7 @@
     const load = async () => {
       try {
         const data = await P.api('channels.bans', { conversation_id: conv.id });
-        page.body.innerHTML = data.bans.length ? `<div class="group-card list">${data.bans.map(b => `<div class="list-item">${P.avatar(b.user, 'sm')}<span class="li-body"><strong>${esc(b.user.name)}</strong><small>${esc(b.reason || t('channel.no_reason'))} · ${esc(P.listTime(b.created_at))}</small></span><button class="btn small" data-unban="${b.user.id}">${esc(t('channel.unban'))}</button></div>`).join('')}</div>` : P.empty('block', t('channel.no_bans'));
+        page.body.innerHTML = data.bans.length ? `<div class="group-card list">${data.bans.map(b => `<div class="list-item">${P.avatar(b.user, 'sm')}<span class="li-body"><strong>${esc(b.user.name)}</strong><small>${esc(b.reason || t('channel.no_reason'))} · ${esc(P.listTime(b.created_at))}</small></span><button class="btn small" data-unban="${b.user.id}">${esc(t('channel.unban'))}</button></div>`).join('')}</div>` : P.empty('block', t('channel.no_bans'), t('channel.no_bans_hint'));
       } catch (error) { page.body.innerHTML = errorBlock(error); }
     };
     page.el.addEventListener('click', async event => { const b = event.target.closest('[data-unban]'); if (b) { try { await P.post('channels.unban', { conversation_id: conv.id, user_id: Number(b.dataset.unban) }); load(); } catch (error) { P.failed(error); } } });
@@ -497,7 +509,7 @@
     page.body.innerHTML = loading;
     try {
       const data = await P.api('channels.audit', { conversation_id: conv.id });
-      page.body.innerHTML = data.entries.length ? `<div class="group-card list">${data.entries.map(e => `<div class="list-item"><span class="li-icon ic-gray">${icon('shield')}</span><span class="li-body"><strong>${esc(t(`audit.${e.action}`, { actor: e.actor_name || '—', target: e.target_name || '' }))}</strong><small>${esc(e.actor_name || '—')}${e.target_name ? ' → ' + esc(e.target_name) : ''} · ${esc(new Date(e.created_at * 1000).toLocaleString(state.locale))}</small></span></div>`).join('')}</div>` : P.empty('shield', t('channel.audit_empty'));
+      page.body.innerHTML = data.entries.length ? `<div class="group-card list">${data.entries.map(e => `<div class="list-item"><span class="li-icon ic-gray">${icon('shield')}</span><span class="li-body"><strong>${esc(t(`audit.${e.action}`, { actor: e.actor_name || '—', target: e.target_name || '' }))}</strong><small>${esc(e.actor_name || '—')}${e.target_name ? ' → ' + esc(e.target_name) : ''} · ${esc(new Date(e.created_at * 1000).toLocaleString(state.locale))}</small></span></div>`).join('')}</div>` : P.empty('shield', t('channel.audit_empty'), t('channel.audit_empty_hint'));
     } catch (error) { page.body.innerHTML = errorBlock(error); }
   }
   function lineChart(series, key) {
@@ -633,7 +645,7 @@
     if (d.callUser || d.videoUser) { const id = Number(d.callUser || d.videoUser); const user = state.contacts.find(u => u.id === id) || await P.api('users.profile', { user_id: id }).catch(() => null); if (user) window.PingUpCalls?.start(user, d.videoUser ? 'video' : 'audio'); return; }
     if (d.communityInfo) {
       const id = Number(d.communityInfo);
-      if (P.findConversation(id)) Pages.communityInfo(id); else joinPublic(id);
+      if (P.findConversation(id)) Pages.communityInfo(id); else previewCommunity({ conversation_id: id });
       return;
     }
     if (d.joinPublic) { joinPublic(Number(d.joinPublic)); return; }

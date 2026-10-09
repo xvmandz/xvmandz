@@ -119,30 +119,63 @@ function communitySearch(string $q, int $userId, array $types, int $limit = 30, 
     return array_map(fn($row) => communityCard($row, $userId), $rows);
 }
 
+// Resolves an invite token, public slug or public id to [community row, invite row|null]. Throws on invalid/expired links.
+function communityResolve(array $input, bool $lock): array
+{
+    $for = $lock ? ' FOR UPDATE' : '';
+    $invite = null;
+    if (!empty($input['invite_token'])) {
+        $token = textValue($input['invite_token'], 64, 16);
+        if (!preg_match('/^[A-Za-z0-9_-]+$/D', $token)) throw new ApiError('channel_not_found', 404);
+        $invite = query('SELECT * FROM conversation_invites WHERE token=?' . $for, [$token])->fetch() ?: null;
+        if ($invite) {
+            if ($invite['revoked_at'] !== null || ($invite['expires_at'] !== null && (int)$invite['expires_at'] <= time()) || ($invite['max_uses'] !== null && (int)$invite['uses'] >= (int)$invite['max_uses'])) throw new ApiError('invite_expired', 410);
+            $channel = query("SELECT * FROM conversations WHERE id=? AND type IN ('channel','group')" . $for, [$invite['conversation_id']])->fetch();
+        } else {
+            $channel = query("SELECT * FROM conversations WHERE type IN ('channel','group') AND invite_token=?" . $for, [$token])->fetch();
+        }
+    } else {
+        $slug = channelSlug($input['slug'] ?? null);
+        if (!$slug && !empty($input['conversation_id'])) {
+            $channel = query("SELECT * FROM conversations WHERE id=? AND type IN ('channel','group') AND visibility='public'" . $for, [intValue($input['conversation_id'])])->fetch();
+        } else {
+            if (!$slug) throw new ApiError('invalid_channel_slug');
+            $channel = query("SELECT * FROM conversations WHERE type IN ('channel','group') AND visibility='public' AND slug=?" . $for, [$slug])->fetch();
+        }
+    }
+    if (!$channel || $channel['archived_at'] !== null) throw new ApiError('channel_not_found', 404);
+    return [$channel, $invite];
+}
+
+// Read-only card shown before joining: opening a link never subscribes by itself.
+function communityPreview(array $input, int $userId): array
+{
+    [$channel] = communityResolve($input, false);
+    $id = (int)$channel['id'];
+    $row = $channel + [
+        'member_count' => (int)query('SELECT COUNT(*) FROM conversation_members WHERE conversation_id=?', [$id])->fetchColumn(),
+        'joined' => (bool)query('SELECT 1 FROM conversation_members WHERE conversation_id=? AND user_id=?', [$id, $userId])->fetchColumn(),
+    ];
+    $card = communityCard($row, $userId);
+    $settings = communitySettings($channel);
+    $card['visibility'] = $channel['visibility'];
+    $card['banned'] = (bool)query('SELECT 1 FROM conversation_bans WHERE conversation_id=? AND user_id=?', [$id, $userId])->fetchColumn();
+    $card['cover_url'] = $channel['cover_file_id'] ? 'media.php?id=' . $channel['cover_file_id'] : null;
+    $card['preset'] = $settings['preset'] ?? null;
+    $card['welcome'] = $settings['welcome'] ?? '';
+    // Public channels show their latest text posts; private communities reveal nothing beyond the card.
+    $card['recent'] = [];
+    if ($channel['visibility'] === 'public' && $channel['type'] === 'channel') {
+        $card['recent'] = array_map(fn($m) => ['id' => (int)$m['id'], 'text' => mb_substr((string)$m['text'], 0, 280), 'created_at' => (int)$m['created_at']],
+            query("SELECT id,text,created_at FROM messages WHERE conversation_id=? AND deleted=0 AND thread_root_id IS NULL AND text<>'' ORDER BY id DESC LIMIT 3", [$id])->fetchAll());
+    }
+    return $card;
+}
+
 function communityJoin(array $input, int $userId): int
 {
     return transaction(function () use ($input, $userId): int {
-        $invite = null;
-        if (!empty($input['invite_token'])) {
-            $token = textValue($input['invite_token'], 64, 16);
-            if (!preg_match('/^[A-Za-z0-9_-]+$/D', $token)) throw new ApiError('channel_not_found', 404);
-            $invite = query('SELECT * FROM conversation_invites WHERE token=? FOR UPDATE', [$token])->fetch() ?: null;
-            if ($invite) {
-                if ($invite['revoked_at'] !== null || ($invite['expires_at'] !== null && (int)$invite['expires_at'] <= time()) || ($invite['max_uses'] !== null && (int)$invite['uses'] >= (int)$invite['max_uses'])) throw new ApiError('invite_expired', 410);
-                $channel = query("SELECT * FROM conversations WHERE id=? AND type IN ('channel','group') FOR UPDATE", [$invite['conversation_id']])->fetch();
-            } else {
-                $channel = query("SELECT * FROM conversations WHERE type IN ('channel','group') AND invite_token=? FOR UPDATE", [$token])->fetch();
-            }
-        } else {
-            $slug = channelSlug($input['slug'] ?? null);
-            if (!$slug && !empty($input['conversation_id'])) {
-                $channel = query("SELECT * FROM conversations WHERE id=? AND type IN ('channel','group') AND visibility='public' FOR UPDATE", [intValue($input['conversation_id'])])->fetch();
-            } else {
-                if (!$slug) throw new ApiError('invalid_channel_slug');
-                $channel = query("SELECT * FROM conversations WHERE type IN ('channel','group') AND visibility='public' AND slug=? FOR UPDATE", [$slug])->fetch();
-            }
-        }
-        if (!$channel || $channel['archived_at'] !== null) throw new ApiError('channel_not_found', 404);
+        [$channel, $invite] = communityResolve($input, true);
         if (query('SELECT 1 FROM conversation_bans WHERE conversation_id=? AND user_id=?', [$channel['id'], $userId])->fetchColumn()) throw new ApiError('community_banned', 403);
         $inserted = query('INSERT INTO conversation_members(conversation_id,user_id,last_read_message_id,last_delivered_message_id,joined_at) VALUES(?,?,COALESCE((SELECT MAX(id) FROM messages WHERE conversation_id=?),0),COALESCE((SELECT MAX(id) FROM messages WHERE conversation_id=?),0),?) ON CONFLICT DO NOTHING RETURNING user_id', [$channel['id'], $userId, $channel['id'], $channel['id'], time()])->fetchColumn();
         if ($inserted) {
@@ -183,6 +216,10 @@ function channelsHandle(string $action,array $input,array $user): array {
         $q=textValue($input['q']??'',80);
         $types=($input['type']??'channel')==='all'?['channel','group']:[($input['type']??'channel')==='group'?'group':'channel'];
         return ['channels'=>communitySearch($q,$uid,$types,50)];
+    }
+    if($action==='channels.preview'){
+        rateLimit('channel-preview',60,60,(string)$uid);
+        return communityPreview($input,$uid);
     }
     if($action==='channels.join'){
         $id=communityJoin($input,$uid);

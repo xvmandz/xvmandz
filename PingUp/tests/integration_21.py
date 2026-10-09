@@ -437,6 +437,13 @@ class PingUp21(unittest.TestCase):
         self.error(d.api("channels.join", {"slug": slug}), 403, "community_banned")
         invites = a.ok("channels.invite_create", {"conversation_id": channel["id"], "name": "one-shot", "max_uses": 1})
         token = invites["invites"][0]["token"]
+        # Opening a link only previews: no membership, no invite use, ban visible to the banned user.
+        preview = self.e.ok("channels.preview", query={"invite_token": token})
+        self.assertEqual((preview["id"], preview["joined"], preview["banned"]), (channel["id"], False, False))
+        self.assertTrue(d.ok("channels.preview", query={"slug": slug})["banned"])
+        self.assertNotIn(channel["id"], [x["id"] for x in self.e.ok("conversations.list")])
+        self.e.ok("channels.preview", query={"invite_token": token})  # previews never consume max_uses
+        self.error(self.e.api("channels.preview", query={"invite_token": "x" * 20}), 404, "channel_not_found")
         self.e.ok("channels.join", {"invite_token": token})
         self.e.ok("channels.leave", {"conversation_id": channel["id"]})
         self.error(self.e.api("channels.join", {"invite_token": token}), 410, "invite_expired")
