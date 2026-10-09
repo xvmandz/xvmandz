@@ -96,15 +96,15 @@ assert(["localhost", "127.0.0.1"].includes(new URL(base).hostname), "Isolated se
           .first()
           .click();
         await b.page.keyboard.press("Control+k");
-        // Measure after the sheet's entrance animation has finished.
-        await b.page.waitForFunction(() => { const sheet = [...document.querySelectorAll(".pu-sheet")].pop(); return sheet && getComputedStyle(sheet).transform === "none" && getComputedStyle(sheet).opacity === "1"; });
-        const modal = await b.page.locator(".pu-sheet").last().boundingBox();
+        // Search is a full screen since the modernisation: measure it after the slide-in has finished.
+        await b.page.waitForFunction(() => { const screen = document.querySelector(".search-screen.open"); return screen && getComputedStyle(screen).transform === "none"; });
+        const modal = await b.page.locator(".search-screen").boundingBox();
         assert(
           modal && modal.x >= 0 && modal.x + modal.width <= size[0] + 1 && modal.y >= -1 && modal.y + modal.height <= size[1] + 1,
-          "Modal clipped at " + size,
+          "Search screen clipped at " + size,
         );
         await b.page.keyboard.press("Escape");
-        await b.page.locator(".pu-sheet-root").waitFor({ state: "detached" });
+        await b.page.locator(".search-screen").waitFor({ state: "detached" });
         const overflow = await b.page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
         assert(overflow <= 1, section + " overflow " + size + ": " + overflow);
       }

@@ -19,6 +19,7 @@
     const layer = PU.pushLayer(() => { closed = true; el.classList.remove('open'); setTimeout(() => el.remove(), PU.reducedMotion() ? 0 : 260); }, 'subpage');
     const api = { el, body: $('.page-content', el), close: () => !closed && PU.closeLayer(layer), get closed() { return closed; }, setTitle: text => { $('h1', el).textContent = text; } };
     el.addEventListener('click', event => { if (event.target.closest('[data-subpage-back]')) api.close(); });
+    el.addEventListener('keydown', event => { if (event.key === 'Escape' && !event.defaultPrevented) { event.preventDefault(); api.close(); } });
     return api;
   }
   Pages.subpage = subpage;
@@ -193,6 +194,7 @@
     const layer = PU.pushLayer(() => { closed = true; el.classList.remove('open'); setTimeout(() => el.remove(), PU.reducedMotion() ? 0 : 260); }, 'search');
     const api = { el, close: () => !closed && PU.closeLayer(layer), get closed() { return closed; } };
     el.addEventListener('click', event => { if (event.target.closest('[data-subpage-back]')) api.close(); });
+    el.addEventListener('keydown', event => { if (event.key === 'Escape' && !event.defaultPrevented) { event.preventDefault(); api.close(); } });
     activeSearch = api;
     return api;
   }

@@ -382,6 +382,7 @@
     };
     const layer = PU.pushLayer(finish, 'find');
     const pick = index => { f.index = index; PU.closeLayer(layer); showFindNav(); jumpTo(f.results[index].id); };
+    page.addEventListener('keydown', event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); PU.closeLayer(layer); } });
     page.addEventListener('click', event => {
       if (event.target.closest('[data-find-close]')) { PU.closeLayer(layer); return; }
       const media = event.target.closest('[data-find-media]');
